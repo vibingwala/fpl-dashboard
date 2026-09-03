@@ -14,6 +14,13 @@ CREST_URL = "https://resources.premierleague.com/premierleague/badges/70/t{code}
 POSITION_NAMES = {1: "GKP", 2: "DEF", 3: "MID", 4: "FWD"}
 
 
+def _flatten(html: str) -> str:
+    """Strip leading whitespace from every line. Markdown treats 4+ leading
+    spaces as a code block regardless of unsafe_allow_html, which silently
+    turns rendered HTML into literal displayed text -- this prevents that."""
+    return "\n".join(line.strip() for line in html.strip().split("\n"))
+
+
 # ---------- Data fetching ----------
 
 @st.cache_data(ttl=3600)
@@ -102,7 +109,7 @@ def player_row_html(player, is_captain=False, is_vice=False, multiplier=1):
     flag = '<span class="flag-dot"></span>' if player["status"] != "a" else ""
     pts = player["points"] * multiplier
 
-    return f"""
+    return _flatten(f"""
     <div class="prow" style="border-left-color:{accent};">
         <div class="prow-main">
             <span class="pname">{player['name']}</span>
@@ -114,7 +121,7 @@ def player_row_html(player, is_captain=False, is_vice=False, multiplier=1):
             <span class="ppoints">{pts}</span>
         </div>
     </div>
-    """
+    """)
 
 
 def render_pitch(picks, players):
@@ -133,12 +140,12 @@ def render_pitch(picks, players):
             player_row_html(player, pick["is_captain"], pick["is_vice_captain"], pick["multiplier"])
             for pick, player in by_pos[pos]
         )
-        sections_html += f"""
+        sections_html += _flatten(f"""
         <div class="section">
             <div class="section-label">{section_labels[pos]}</div>
             {rows}
         </div>
-        """
+        """)
 
     bench_rows = "".join(player_row_html(players[p["element"]]) for p in bench)
 
