@@ -97,6 +97,17 @@ def suggest_transfers(profile, squad_players, all_players, fixtures, from_event,
     return suggestions
 
 
+def suggest_captain(squad_players, fixtures, from_event, n=3):
+    """Ranks squad players by projected single-gameweek EV for the captaincy
+    decision. Returns the top n as (player, ev) tuples, best first."""
+    ranked = sorted(
+        squad_players,
+        key=lambda p: expected_value(p, fixtures, from_event, 1),
+        reverse=True,
+    )
+    return [(p, expected_value(p, fixtures, from_event, 1)) for p in ranked[:n]]
+
+
 def suggest_chip(profile, squad_players, bench_players, fixtures, from_event,
                   gw_ev_trend, is_blank_or_double_soon):
     """

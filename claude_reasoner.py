@@ -81,6 +81,10 @@ Write a briefing with these sections:
    season-long goal specifically, not just this gameweek.
 4. The one chip call -- same treatment, or explicitly say "hold all chips" if
    nothing clears the bar and none should be forced.
+5. Your captain pick -- from captain_options, name who to captain this week and
+   why, weighing their projected_ev against fixture and rotation risk. If the
+   safest, highest-owned pick and the highest-ceiling differential pick genuinely
+   differ, say so briefly rather than picking without acknowledging the trade-off.
 
 Keep the whole thing under 250 words. Do not repeat the raw numbers already in
 the charts the manager will see alongside this text -- interpret them, don't
