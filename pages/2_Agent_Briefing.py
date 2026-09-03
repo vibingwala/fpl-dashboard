@@ -12,7 +12,7 @@ import streamlit as st
 from fpl_data import (
     get_bootstrap, get_fixtures, get_entry_history, get_picks,
     get_current_event, get_next_deadline, estimate_free_transfers,
-    build_player_lookup,
+    build_player_lookup, get_chips_used,
 )
 from strategy import suggest_transfers, suggest_chip, PROFILES
 from visuals import cumulative_points_chart, gap_bar_chart, transfer_options_chart
@@ -118,6 +118,17 @@ if st.session_state[cache_key] is None:
                 "gameweek": next_event,
                 "my_total": my_history["current"][-1]["total_points"],
                 "rival_total": rival_history["current"][-1]["total_points"],
+                "points_trend": [
+                    {
+                        "gw": my_gw["event"],
+                        "you": my_gw["total_points"],
+                        "rival": rival_gw["total_points"],
+                    }
+                    for my_gw, rival_gw in zip(
+                        my_history["current"][-6:], rival_history["current"][-6:]
+                    )
+                ],
+                "chips_used": get_chips_used(my_history),
                 "bank": bank,
                 "free_transfers_estimated": free_transfers,
                 "transfer_suggestions": {p: suggestions_by_profile[p][:2] for p in PROFILES},
