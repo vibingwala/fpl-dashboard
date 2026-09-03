@@ -11,6 +11,11 @@ ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages"
 MODEL = "claude-sonnet-4-6"
 
 
+class ClaudeAPIError(Exception):
+    """Raised with a human-readable explanation instead of a bare HTTP error."""
+    pass
+
+
 def _extract_text(content_blocks):
     return "\n".join(b["text"] for b in content_blocks if b.get("type") == "text")
 
@@ -23,7 +28,17 @@ def generate_weekly_analysis(api_key, context: dict) -> str:
     chips_used (list already played), squad_status_flags.
     Returns a plain-text/markdown narrative ready to drop into the email
     or app page.
+
+    Raises ClaudeAPIError with a specific, actionable message on failure,
+    instead of letting a generic HTTP error surface.
     """
+    if not api_key or not api_key.startswith("sk-ant-"):
+        raise ClaudeAPIError(
+            "That doesn't look like a valid Anthropic API key (should start with "
+            "'sk-ant-'). Check console.anthropic.com and make sure you copied the "
+            "full key, and that it's set correctly in Streamlit Secrets."
+        )
+
     prompt = f"""You are a sharp, concise FPL (Fantasy Premier League) analyst writing a
 weekly briefing for a manager who is a mathematician and dislikes walls of text.
 Use short paragraphs and bullet points. Be direct about what actually matters.
@@ -83,7 +98,39 @@ restate them."""
         "content-type": "application/json",
     }
 
-    response = requests.post(ANTHROPIC_API_URL, headers=headers, json=payload, timeout=60)
-    response.raise_for_status()
+    try:
+        response = requests.post(ANTHROPIC_API_URL, headers=headers, json=payload, timeout=60)
+    except requests.RequestException as e:
+        raise ClaudeAPIError(f"Network error reaching the Claude API: {e}")
+
+    if response.status_code == 401:
+        raise ClaudeAPIError(
+            "Authentication failed (401) -- the API key was rejected. "
+            "Double-check it's copied correctly and hasn't been revoked."
+        )
+    if response.status_code == 404:
+        raise ClaudeAPIError(
+            f"Model not found (404) -- '{MODEL}' may have been retired. "
+            "Check console.anthropic.com/docs for the current model list."
+        )
+    if response.status_code == 429:
+        raise ClaudeAPIError(
+            "Rate limited (429) -- too many requests, or your account needs "
+            "billing credit added. Check console.anthropic.com's usage page."
+        )
+    if response.status_code >= 400:
+        # Surface the real body instead of a generic message -- this is what
+        # actually tells us what went wrong.
+        raise ClaudeAPIError(
+            f"Claude API returned HTTP {response.status_code}. Response body: "
+            f"{response.text[:500]}"
+        )
+
     data = response.json()
-    return _extract_text(data.get("content", []))
+    text = _extract_text(data.get("content", []))
+    if not text:
+        raise ClaudeAPIError(
+            f"Got a 200 response but no text content back. Raw response: "
+            f"{json.dumps(data)[:500]}"
+        )
+    return text

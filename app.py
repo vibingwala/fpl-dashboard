@@ -48,6 +48,36 @@ def get_entry_info(entry_id):
     return r.json()
 
 
+# Curated colors for real club badges (short_name -> hex), so we don't depend
+# on external crest images that often block hotlinking and show as broken
+# images instead. Falls back to a deterministic color for any team not listed.
+TEAM_COLORS = {
+    "ARS": "#EF0107", "AVL": "#95BFE5", "BOU": "#DA291C", "BRE": "#e30613",
+    "BHA": "#0057B8", "BUR": "#6C1D45", "CHE": "#034694", "CRY": "#1B458F",
+    "EVE": "#003399", "FUL": "#000000", "IPS": "#3A64A3", "LEI": "#003090",
+    "LEE": "#FFCD00", "LIV": "#C8102E", "MCI": "#6CABDD", "MUN": "#DA291C",
+    "NEW": "#241F20", "NFO": "#DD0000", "SOU": "#D71920", "TOT": "#132257",
+    "WHU": "#7A263A", "WOL": "#FDB913", "SUN": "#EB172B", "HUL": "#F18A01",
+    "COV": "#78D0F7", "MID": "#FF0000",
+}
+FALLBACK_PALETTE = ["#534AB7", "#0F6E56", "#993C1D", "#993556", "#185FA5", "#3B6D11"]
+
+
+def team_color(short_name):
+    if short_name in TEAM_COLORS:
+        return TEAM_COLORS[short_name]
+    # deterministic fallback so the same team always gets the same color
+    idx = sum(ord(c) for c in short_name) % len(FALLBACK_PALETTE)
+    return FALLBACK_PALETTE[idx]
+
+
+def readable_text_color(hex_color):
+    hex_color = hex_color.lstrip("#")
+    r, g, b = (int(hex_color[i:i + 2], 16) for i in (0, 2, 4))
+    brightness = (r * 299 + g * 587 + b * 114) / 1000
+    return "#111111" if brightness > 150 else "#ffffff"
+
+
 def build_player_lookup(bootstrap):
     teams = {t["id"]: t for t in bootstrap["teams"]}
     players = {}
@@ -56,7 +86,7 @@ def build_player_lookup(bootstrap):
         players[p["id"]] = {
             "name": p["web_name"],
             "position": POSITION_NAMES.get(p["element_type"], "?"),
-            "team_code": team.get("code"),
+            "team_short": team.get("short_name", "?"),
             "team_name": team.get("name", ""),
             "points": p.get("event_points", 0),
             "total_points": p.get("total_points", 0),
@@ -71,7 +101,9 @@ def build_player_lookup(bootstrap):
 # ---------- Rendering ----------
 
 def player_card_html(player, is_captain=False, is_vice=False, multiplier=1):
-    crest = CREST_URL.format(code=player["team_code"]) if player["team_code"] else ""
+    bg = team_color(player["team_short"])
+    fg = readable_text_color(bg)
+
     badge = ""
     if is_captain:
         badge = '<div class="badge captain">C</div>'
@@ -88,7 +120,7 @@ def player_card_html(player, is_captain=False, is_vice=False, multiplier=1):
     <div class="player-card">
         {badge}
         {flag}
-        <img src="{crest}" class="crest" />
+        <div class="crest" style="background:{bg}; color:{fg};">{player['team_short']}</div>
         <div class="pname">{player['name']}</div>
         <div class="pmeta">£{player['price']:.1f}m</div>
         <div class="ppoints">{pts} pts</div>
@@ -146,24 +178,34 @@ CSS = """
     position: relative;
     background: rgba(255,255,255,0.95);
     border-radius: 10px;
-    padding: 10px 8px 8px;
-    width: 90px;
+    padding: 10px 6px 8px;
+    width: 96px;
     text-align: center;
     box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+    overflow: visible;
 }
 .crest {
-    width: 32px;
-    height: 32px;
-    object-fit: contain;
-    margin-bottom: 4px;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    margin: 0 auto 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.3px;
 }
 .pname {
     font-weight: 700;
     font-size: 12px;
     color: #111;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    white-space: normal;
+    line-height: 1.2;
+    min-height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 .pmeta {
     font-size: 10px;
