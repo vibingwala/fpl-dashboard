@@ -23,7 +23,7 @@ def _extract_text(content_blocks):
 def generate_weekly_analysis(api_key, context: dict) -> str:
     """
     context should include: gameweek, my_total, rival_total, points_trend
-    (per-gameweek you-vs-rival history), bank, free_transfers_estimated,
+    (per-gameweek you-vs-rival history), bank, free_transfers, captain_options,
     transfer_suggestions (by profile), chip_suggestions (by profile),
     chips_used (list already played), squad_status_flags.
     Returns a plain-text/markdown narrative ready to drop into the email
@@ -39,9 +39,23 @@ def generate_weekly_analysis(api_key, context: dict) -> str:
             "full key, and that it's set correctly in Streamlit Secrets."
         )
 
+    free_transfers = context.get("free_transfers", context.get("free_transfers_estimated"))
+    bank = context.get("bank")
+
     prompt = f"""You are a sharp, concise FPL (Fantasy Premier League) analyst writing a
 weekly briefing for a manager who is a mathematician and dislikes walls of text.
 Use short paragraphs and bullet points. Be direct about what actually matters.
+
+HARD CONSTRAINT -- read this before anything else: the manager has exactly
+{free_transfers} free transfer(s) available this week, and a bank of £{bank}m.
+Any transfer beyond that count costs -4 points as a hit. The four strategy
+profiles below were each computed independently and may each assume their own
+single transfer in isolation -- they are NOT necessarily compatible with each
+other. Never recommend making two (or more) of these profiles' transfers
+together unless you explicitly call out the resulting hit cost and justify it.
+If {free_transfers} is 1, your final recommendation must be exactly one transfer
+(or zero, i.e. bank it) -- never phrase it as "make both" or list multiple
+transfers as if they're free just because they came from different profiles.
 
 The manager's season-long goal is explicit and singular: finish the season with a
 higher total than their tracked rival (the benchmark in this data). Every
