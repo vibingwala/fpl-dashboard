@@ -14,7 +14,7 @@ from fpl_data import (
     get_current_event, get_next_deadline, estimate_free_transfers,
     build_player_lookup, get_chips_used,
 )
-from strategy import suggest_transfers, suggest_chip, PROFILES
+from strategy import suggest_transfers, suggest_chip, suggest_captain, PROFILES
 from visuals import cumulative_points_chart, gap_bar_chart, transfer_options_chart
 from claude_reasoner import generate_weekly_analysis, ClaudeAPIError
 
@@ -114,6 +114,8 @@ if st.session_state[cache_key] is None:
                 )
                 chips_by_profile[profile] = {"chip": chip, "reason": reason}
 
+            captain_options = suggest_captain(squad_players, fixtures, next_event)
+
             context = {
                 "gameweek": next_event,
                 "my_total": my_history["current"][-1]["total_points"],
@@ -133,6 +135,9 @@ if st.session_state[cache_key] is None:
                 "free_transfers_estimated": free_transfers,
                 "transfer_suggestions": {p: suggestions_by_profile[p][:2] for p in PROFILES},
                 "chip_suggestions": chips_by_profile,
+                "captain_options": [
+                    {"name": p["name"], "projected_ev": ev} for p, ev in captain_options
+                ],
                 "squad_status_flags": [
                     {"name": pl["name"], "status": pl["status"], "news": pl["news"]}
                     for pl in squad_players if pl["status"] != "a"
