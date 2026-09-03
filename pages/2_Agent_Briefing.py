@@ -16,7 +16,7 @@ from fpl_data import (
 )
 from strategy import suggest_transfers, suggest_chip, PROFILES
 from visuals import cumulative_points_chart, gap_bar_chart, transfer_options_chart
-from claude_reasoner import generate_weekly_analysis
+from claude_reasoner import generate_weekly_analysis, ClaudeAPIError
 
 st.set_page_config(page_title="FPL Agent Briefing", page_icon="\U0001f916", layout="wide")
 st.title("Agent briefing")
@@ -146,6 +146,9 @@ if st.session_state[cache_key] is None:
                 "transfers": transfer_options_chart(suggestions_by_profile),
             }
             st.session_state[cache_key] = {"narrative": narrative, "charts": charts}
+        except ClaudeAPIError as e:
+            st.error(f"AI briefing failed: {e}")
+            st.stop()
         except Exception as e:
             st.error(f"Briefing generation failed: {e}")
             st.stop()
