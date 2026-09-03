@@ -110,9 +110,35 @@ def minutes_probability(player):
     return status_map.get(player["status"], 0.75)
 
 
-def fixture_ease_lookahead(team_id, fixtures, from_event, n=4):
-    """Average FDR-based ease (lower FDR = easier = higher ease score) over
-    the next n fixtures for a team, starting from from_event."""
+def build_team_strength(bootstrap):
+    """Per-team attack/defence strength ratings (FPL's own model, roughly
+    1000-1400 scale), split home/away. Used to judge fixtures by actual
+    opponent quality rather than just the single 1-5 FDR digit."""
+    return {
+        t["id"]: {
+            "attack_home": t["strength_attack_home"],
+            "attack_away": t["strength_attack_away"],
+            "defence_home": t["strength_defence_home"],
+            "defence_away": t["strength_defence_away"],
+        }
+        for t in bootstrap["teams"]
+    }
+
+
+def _normalize_strength(value, all_values):
+    lo, hi = min(all_values), max(all_values)
+    if hi == lo:
+        return 0.5
+    return (value - lo) / (hi - lo)
+
+
+def fixture_ease_lookahead(team_id, fixtures, from_event, n=4, position=None, team_strength=None):
+    """Average ease over the next n fixtures for a team, starting from
+    from_event. When team_strength is provided, blends FPL's blunt 1-5 FDR
+    with the actual opponent's attack/defence rating relevant to this
+    player's position: defenders/keepers care about the opponent's attack
+    strength (clean sheet odds), attackers care about the opponent's
+    defence strength (goal-scoring odds)."""
     relevant = [
         f for f in fixtures
         if f["event"] and f["event"] >= from_event
@@ -120,16 +146,43 @@ def fixture_ease_lookahead(team_id, fixtures, from_event, n=4):
     ]
     relevant = sorted(relevant, key=lambda f: f["event"])[:n]
     if not relevant:
-        return 0.6  # neutral default
+        return 0.6
+
     eases = []
     for f in relevant:
-        fdr = f["team_h_difficulty"] if f["team_h"] == team_id else f["team_a_difficulty"]
-        eases.append((6 - fdr) / 5)  # FDR 1-5 -> ease 1.0-0.2
+        is_home = f["team_h"] == team_id
+        fdr = f["team_h_difficulty"] if is_home else f["team_a_difficulty"]
+        fdr_ease = (6 - fdr) / 5
+
+        if team_strength:
+            opponent_id = f["team_a"] if is_home else f["team_h"]
+            opp = team_strength.get(opponent_id)
+            if opp:
+                # opponent's relevant stat, at the venue they're actually playing
+                if position in ("GKP", "DEF"):
+                    opp_value = opp["attack_away"] if is_home else opp["attack_home"]
+                else:
+                    opp_value = opp["defence_away"] if is_home else opp["defence_home"]
+                all_vals = [
+                    (v["attack_away"] if position in ("GKP", "DEF") else v["defence_away"])
+                    for v in team_strength.values()
+                ]
+                opp_strength_ease = 1 - _normalize_strength(opp_value, all_vals)
+                eases.append(0.5 * fdr_ease + 0.5 * opp_strength_ease)
+                continue
+
+        eases.append(fdr_ease)
+
     return sum(eases) / len(eases)
 
 
-def expected_value(player, fixtures, from_event, n=4):
-    """EV = form x fixture ease x minutes probability, projected over n games."""
-    ease = fixture_ease_lookahead(player["team_id"], fixtures, from_event, n)
+def expected_value(player, fixtures, from_event, n=4, team_strength=None):
+    """EV = form x fixture ease x minutes probability, projected over n games.
+    Fixture ease accounts for actual opponent strength when team_strength
+    is supplied, not just the blunt FDR digit."""
+    ease = fixture_ease_lookahead(
+        player["team_id"], fixtures, from_event, n,
+        position=player["position"], team_strength=team_strength,
+    )
     prob = minutes_probability(player)
     return round(player["form"] * ease * prob * n / 4, 2)

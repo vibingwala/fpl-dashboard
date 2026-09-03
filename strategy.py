@@ -31,7 +31,7 @@ def _candidates_for_position(all_players, position, exclude_ids, max_price):
 
 
 def suggest_transfers(profile, squad_players, all_players, fixtures, from_event,
-                       bank, free_transfers, lookahead=4):
+                       bank, free_transfers, lookahead=4, team_strength=None):
     """
     squad_players: list of player dicts currently in the manager's squad
     Returns a list of suggestion dicts, best first, each with:
@@ -45,11 +45,11 @@ def suggest_transfers(profile, squad_players, all_players, fixtures, from_event,
         candidates = _candidates_for_position(
             all_players, out_player["position"], exclude_ids, max_price
         )
-        out_ev = expected_value(out_player, fixtures, from_event, lookahead)
+        out_ev = expected_value(out_player, fixtures, from_event, lookahead, team_strength)
 
         scored = []
         for cand in candidates:
-            cand_ev = expected_value(cand, fixtures, from_event, lookahead)
+            cand_ev = expected_value(cand, fixtures, from_event, lookahead, team_strength)
             gain = round(cand_ev - out_ev, 2)
             scored.append((cand, cand_ev, gain))
 
@@ -97,19 +97,19 @@ def suggest_transfers(profile, squad_players, all_players, fixtures, from_event,
     return suggestions
 
 
-def suggest_captain(squad_players, fixtures, from_event, n=3):
+def suggest_captain(squad_players, fixtures, from_event, n=3, team_strength=None):
     """Ranks squad players by projected single-gameweek EV for the captaincy
     decision. Returns the top n as (player, ev) tuples, best first."""
     ranked = sorted(
         squad_players,
-        key=lambda p: expected_value(p, fixtures, from_event, 1),
+        key=lambda p: expected_value(p, fixtures, from_event, 1, team_strength),
         reverse=True,
     )
-    return [(p, expected_value(p, fixtures, from_event, 1)) for p in ranked[:n]]
+    return [(p, expected_value(p, fixtures, from_event, 1, team_strength)) for p in ranked[:n]]
 
 
 def suggest_chip(profile, squad_players, bench_players, fixtures, from_event,
-                  gw_ev_trend, is_blank_or_double_soon):
+                  gw_ev_trend, is_blank_or_double_soon, team_strength=None):
     """
     Returns (chip_name_or_None, reason_string).
     Thresholds tighten from aggressive -> conservative.
@@ -122,9 +122,9 @@ def suggest_chip(profile, squad_players, bench_players, fixtures, from_event,
     }[profile]
 
     # Triple captain: best captain candidate's EV vs their own season baseline
-    best = max(squad_players, key=lambda p: expected_value(p, fixtures, from_event, 1))
-    best_ev = expected_value(best, fixtures, from_event, 1)
-    baseline = expected_value(best, fixtures, max(from_event - 4, 1), 4) / 4
+    best = max(squad_players, key=lambda p: expected_value(p, fixtures, from_event, 1, team_strength))
+    best_ev = expected_value(best, fixtures, from_event, 1, team_strength)
+    baseline = expected_value(best, fixtures, max(from_event - 4, 1), 4, team_strength) / 4
     if baseline > 0 and best_ev / baseline >= thresholds["tc_multiplier"]:
         return "Triple Captain", f"{best['name']}'s projected EV this week is {round(best_ev/baseline,2)}x their recent baseline."
 

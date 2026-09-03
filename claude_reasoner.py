@@ -80,6 +80,15 @@ To decide, weigh:
 - Chips already used (see chips_used) -- never recommend a chip that's already
   been played this season. If unsure how many of each chip remain available
   under the current season's rules, use web search to check rather than assume.
+- Opposition quality and current form -- the fixture data already accounts for
+  the opponent's season-long attack/defence strength, but that's a static
+  rating. Use web search to check the actual opponent's recent form (last
+  3-5 results), any key injuries or suspensions on THEIR side that change the
+  picture, and their current league position/momentum. A fixture that looks
+  easy on paper against a team on a current unbeaten run, or hard on paper
+  against a team missing their first-choice defence, deserves a different call
+  than the static rating alone suggests -- factor this into both the transfer
+  and captaincy reasoning explicitly, not just your own players' news.
 - Squad health -- use web search for any current injury/rotation news on flagged
   players (squad_status_flags) or on players mentioned in the transfer options,
   beyond your training data cutoff.
@@ -107,12 +116,14 @@ Structure, in this order:
    stated as an implication, not a data recap.
 3. Recommendation -- Transfer: assertion headline, then 1-2 supporting bullets
    covering why this beats the other three profiles' suggestions for the
-   season-long goal, and the net cost/gain.
+   season-long goal, the net cost/gain, and what the opponent's current form
+   (not just their season-long rating) adds to the picture.
 4. Recommendation -- Chip: same treatment, or "Hold all chips" as the headline
    if nothing clears the bar.
-5. Recommendation -- Captain: assertion headline naming the pick, with the
-   trade-off named explicitly only if a genuine safe-vs-differential tension
-   exists.
+5. Recommendation -- Captain: assertion headline naming the pick, weighing their
+   opponent's actual current form and defensive/attacking record alongside your
+   own player's data. Name the trade-off explicitly only if a genuine
+   safe-vs-differential tension exists.
 6. Watch-outs: any real injury/rotation risk found via web search, as terse
    bullets -- omit this section entirely if there's nothing to flag.
 
