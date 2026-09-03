@@ -42,6 +42,14 @@ def get_current_event(bootstrap):
 
 
 @st.cache_data(ttl=600)
+def get_next_event(bootstrap):
+    for event in bootstrap["events"]:
+        if event["is_next"]:
+            return event["id"]
+    return None
+
+
+@st.cache_data(ttl=600)
 def get_picks(entry_id, event_id):
     r = requests.get(f"{FPL_BASE}/entry/{entry_id}/event/{event_id}/picks/", timeout=10)
     r.raise_for_status()
@@ -250,7 +258,26 @@ def main():
     try:
         bootstrap = get_bootstrap()
         entry_info = get_entry_info(entry_id)
-        event_id = get_current_event(bootstrap)
+        current_event = get_current_event(bootstrap)
+        next_event = get_next_event(bootstrap)
+    except requests.RequestException as e:
+        st.error(f"Couldn't reach the FPL API: {e}")
+        return
+
+    view_options = [f"Current (GW{current_event}, locked)"]
+    if next_event:
+        view_options.append(f"Upcoming (GW{next_event}, still editable)")
+
+    view_choice = st.radio("Viewing", view_options, horizontal=True)
+    event_id = next_event if "Upcoming" in view_choice else current_event
+
+    if "Upcoming" in view_choice:
+        st.caption(
+            "This is your provisional squad for next gameweek -- it reflects "
+            "transfers you've made but haven't locked in yet, and can still change."
+        )
+
+    try:
         picks_data = get_picks(entry_id, event_id)
     except requests.RequestException as e:
         st.error(f"Couldn't reach the FPL API: {e}")
