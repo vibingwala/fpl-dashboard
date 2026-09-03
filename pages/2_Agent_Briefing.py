@@ -29,6 +29,14 @@ with st.sidebar:
     threshold_hours = st.number_input(
         "Unlock window (hours before deadline)", min_value=1, max_value=168, value=24,
     )
+    st.divider()
+    st.caption("Free transfers are estimated (the public API doesn't expose this). "
+               "Verify it below before generating -- a wrong number here wastes a "
+               "paid API call on bad facts.")
+    ft_override = st.checkbox("Override estimated free transfers")
+    ft_manual = st.number_input("Free transfers available", min_value=0, max_value=5, value=1) \
+        if ft_override else None
+    st.divider()
     api_key = st.text_input(
         "Anthropic API key", value=st.secrets.get("ANTHROPIC_API_KEY", ""), type="password",
     )
@@ -71,7 +79,25 @@ if hours_remaining > threshold_hours:
 
 st.success(f"Within the {threshold_hours:.0f}-hour window -- briefing available.")
 
-cache_key = f"briefing_{entry_id}_{rival_id}_{next_event}"
+try:
+    _preview_history = get_entry_history(entry_id)
+    _estimated_ft = estimate_free_transfers(_preview_history)
+except Exception:
+    _estimated_ft = None
+
+free_transfers = ft_manual if ft_manual is not None else _estimated_ft
+
+col3, col4 = st.columns(2)
+col3.metric(
+    "Free transfers going into this briefing",
+    free_transfers if free_transfers is not None else "?",
+)
+col4.caption(
+    "Manually overridden in sidebar" if ft_manual is not None
+    else "Estimated -- check this against the app before generating"
+)
+
+cache_key = f"briefing_{entry_id}_{rival_id}_{next_event}_ft{free_transfers}"
 
 if cache_key not in st.session_state:
     st.session_state[cache_key] = None
@@ -96,7 +122,6 @@ if st.session_state[cache_key] is None:
             my_picks = get_picks(entry_id, current_event)
 
             bank = my_picks["entry_history"]["bank"] / 10
-            free_transfers = estimate_free_transfers(my_history)
 
             squad_players = [players[p["element"]] for p in my_picks["picks"] if p["multiplier"] > 0]
             bench_players = [players[p["element"]] for p in my_picks["picks"] if p["multiplier"] == 0]
@@ -132,7 +157,7 @@ if st.session_state[cache_key] is None:
                 ],
                 "chips_used": get_chips_used(my_history),
                 "bank": bank,
-                "free_transfers_estimated": free_transfers,
+                "free_transfers": free_transfers,
                 "transfer_suggestions": {p: suggestions_by_profile[p][:2] for p in PROFILES},
                 "chip_suggestions": chips_by_profile,
                 "captain_options": [
