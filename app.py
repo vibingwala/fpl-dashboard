@@ -270,18 +270,35 @@ def main():
 
     view_choice = st.radio("Viewing", view_options, horizontal=True)
     event_id = next_event if "Upcoming" in view_choice else current_event
-
-    if "Upcoming" in view_choice:
-        st.caption(
-            "This is your provisional squad for next gameweek -- it reflects "
-            "transfers you've made but haven't locked in yet, and can still change."
-        )
+    viewing_upcoming = "Upcoming" in view_choice
 
     try:
         picks_data = get_picks(entry_id, event_id)
     except requests.RequestException as e:
-        st.error(f"Couldn't reach the FPL API: {e}")
-        return
+        if viewing_upcoming:
+            st.warning(
+                "FPL's public API doesn't expose your squad for an upcoming, "
+                "not-yet-locked gameweek -- only finalized ones. Seeing live "
+                "pending transfers before deadline would need a logged-in FPL "
+                "session, which this app doesn't set up. Showing your current "
+                "locked squad instead."
+            )
+            event_id = current_event
+            viewing_upcoming = False
+            try:
+                picks_data = get_picks(entry_id, event_id)
+            except requests.RequestException as e2:
+                st.error(f"Couldn't reach the FPL API: {e2}")
+                return
+        else:
+            st.error(f"Couldn't reach the FPL API: {e}")
+            return
+
+    if viewing_upcoming:
+        st.caption(
+            "This is your provisional squad for next gameweek -- it reflects "
+            "transfers you've made but haven't locked in yet, and can still change."
+        )
 
     players = build_player_lookup(bootstrap)
 
