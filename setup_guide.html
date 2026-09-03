@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>FPL Dashboard — Setup Guide</title>
+<style>
+  :root {
+    --green: #1a7a3c;
+    --orange: #f5a623;
+    --dark: #0e2b1a;
+    --panel: #ffffff;
+    --text: #222;
+    --muted: #666;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, Segoe UI, Roboto, sans-serif;
+    background: var(--dark);
+    color: var(--text);
+    margin: 0;
+    padding: 0 0 60px;
+  }
+  header {
+    background: linear-gradient(135deg, var(--green), #2ba84a);
+    color: white;
+    padding: 40px 24px 32px;
+    text-align: center;
+  }
+  header h1 { margin: 0 0 8px; font-size: 28px; }
+  header p { margin: 0; opacity: 0.9; }
+  .wrap { max-width: 720px; margin: 0 auto; padding: 24px 16px; }
+  .partlabel {
+    color: var(--orange);
+    font-weight: 700;
+    text-transform: uppercase;
+    font-size: 13px;
+    letter-spacing: 1px;
+    margin: 40px 0 8px;
+  }
+  .parttitle { color: white; font-size: 22px; margin: 0 0 16px; }
+  .step {
+    background: var(--panel);
+    border-radius: 12px;
+    padding: 18px 20px;
+    margin-bottom: 14px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  }
+  .step-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 8px;
+  }
+  .step-num {
+    background: var(--green);
+    color: white;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 14px;
+    flex-shrink: 0;
+  }
+  .step-title { font-weight: 700; font-size: 16px; margin: 0; }
+  .step p { margin: 6px 0; line-height: 1.5; font-size: 14.5px; }
+  code, .path {
+    background: #f0f0ea;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 13px;
+    font-family: Menlo, Consolas, monospace;
+  }
+  pre {
+    background: #16281c;
+    color: #d8f5e0;
+    padding: 12px 14px;
+    border-radius: 8px;
+    overflow-x: auto;
+    font-size: 13px;
+    line-height: 1.5;
+  }
+  .callout {
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 13.5px;
+    margin-top: 10px;
+  }
+  .tip { background: #eaf6ee; border-left: 4px solid var(--green); }
+  .warn { background: #fff3e0; border-left: 4px solid var(--orange); }
+  .optional-badge {
+    display: inline-block;
+    background: #eee;
+    color: #555;
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 10px;
+    margin-left: 8px;
+    font-weight: 600;
+  }
+  a { color: var(--green); }
+  .checklist { list-style: none; padding: 0; margin: 8px 0 0; }
+  .checklist li { margin-bottom: 4px; font-size: 14px; }
+  .checklist li::before { content: "☐ "; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>⚽ FPL Dashboard — Setup Guide</h1>
+  <p>Zero assumptions. Follow top to bottom.</p>
+</header>
+
+<div class="wrap">
+
+  <div class="partlabel">Part 1 of 3</div>
+  <div class="parttitle">Get the files ready on GitHub</div>
+
+  <div class="step">
+    <div class="step-header"><div class="step-num">1</div><p class="step-title">Create a GitHub account</p></div>
+    <p>Go to <a href="https://github.com">github.com</a> and sign up. It's free. This is just a place to store your code online so Streamlit can find it.</p>
+  </div>
+
+  <div class="step">
+    <div class="step-header"><div class="step-num">2</div><p class="step-title">Create a new repository</p></div>
+    <p>Click the <strong>+</strong> icon top-right → <strong>New repository</strong>.</p>
+    <p>Name it <code>fpl-dashboard</code>. Leave it set to <strong>Public</strong>. Click <strong>Create repository</strong>.</p>
+    <div class="callout warn">It must be Public — Streamlit's free hosting tier requires this.</div>
+  </div>
+
+  <div class="step">
+    <div class="step-header"><div class="step-num">3</div><p class="step-title">Upload the main files</p></div>
+    <p>On your new repo's page, click <strong>uploading an existing file</strong>.</p>
+    <p>Drag in these files (from what Claude gave you): <code>app.py</code>, <code>fpl_data.py</code>, <code>strategy.py</code>, <code>claude_reasoner.py</code>, <code>visuals.py</code>, <code>requirements.txt</code>, <code>README.md</code>.</p>
+    <p>Scroll down, click <strong>Commit changes</strong>.</p>
+  </div>
+
+  <div class="step">
+    <div class="step-header"><div class="step-num">4</div><p class="step-title">Add the two "pages" files (in their own folder)</p></div>
+    <p>Click <strong>Add file → Create new file</strong>.</p>
+    <p>In the filename box, type exactly: <code>pages/1_Transfers_and_Chips.py</code> — typing the slash makes GitHub create the folder automatically.</p>
+    <p>Paste in that file's contents below the filename box, then <strong>Commit changes</strong>.</p>
+    <p>Repeat the same process for <code>pages/2_Agent_Briefing.py</code>.</p>
+  </div>
+
+  <div class="step">
+    <div class="step-header"><div class="step-num">5</div><p class="step-title">Add the theme file</p></div>
+    <p>Same trick: <strong>Add file → Create new file</strong> → filename <code>.streamlit/config.toml</code> → paste its contents → commit.</p>
+    <p>This makes the app look green/orange instead of default gray.</p>
+  </div>
+
+  <div class="callout tip" style="margin: 0 0 20px;">
+    <strong>Checkpoint:</strong> your repo should now show two folders (<code>.streamlit</code>, <code>pages</code>) plus the loose files from Step 3. If something's missing, re-check the filename spelling — it has to be exact.
+  </div>
+
+  <div class="partlabel">Part 2 of 3</div>
+  <div class="parttitle">Deploy it so you can open it on your phone</div>
+
+  <div class="step">
+    <div class="step-header"><div class="step-num">6</div><p class="step-title">Sign up for Streamlit Community Cloud</p></div>
+    <p>Go to <a href="https://share.streamlit.io">share.streamlit.io</a> → <strong>Sign in with GitHub</strong> → authorize it when asked.</p>
+  </div>
+
+  <div class="step">
+    <div class="step-header"><div class="step-num">7</div><p class="step-title">Deploy the app</p></div>
+    <p>Click <strong>New app</strong>. Pick your <code>fpl-dashboard</code> repository. Set the main file path to <code>app.py</code>. Click <strong>Deploy</strong>.</p>
+    <p>Wait 1–2 minutes. You'll land on a live URL like <code>yourname-fpl-dashboard.streamlit.app</code>.</p>
+  </div>
+
+  <div class="step">
+    <div class="step-header"><div class="step-num">8</div><p class="step-title">Add your Anthropic API key as a secret <span class="optional-badge">needed for Agent Briefing page</span></p></div>
+    <p>First, get a key: go to <a href="https://console.anthropic.com">console.anthropic.com</a>, sign up, add a small amount of billing credit, then create an API key.</p>
+    <p>Back in Streamlit Cloud: open your app → <strong>Settings → Secrets</strong>. Paste in:</p>
+    <pre>ANTHROPIC_API_KEY = "sk-ant-your-real-key-here"</pre>
+    <p>Save. This keeps the key private — it never goes into your public GitHub repo.</p>
+  </div>
+
+  <div class="step">
+    <div class="step-header"><div class="step-num">9</div><p class="step-title">Put it on your phone's home screen</p></div>
+    <p>Open the <code>.streamlit.app</code> link on your phone in Chrome. Tap the <strong>⋮</strong> menu → <strong>Add to Home screen</strong>.</p>
+    <p>You now have an app icon that opens full-screen, like a real app.</p>
+  </div>
+
+  <div class="partlabel">Part 3 of 3</div>
+  <div class="parttitle">Optional: the automated email agent <span class="optional-badge">runs on your computer, not your phone</span></div>
+
+  <div class="step">
+    <div class="step-header"><div class="step-num">10</div><p class="step-title">Open the project in PyCharm</p></div>
+    <p>Put all the <code>fpl_agent</code> files Claude gave you (<code>agent.py</code>, <code>fpl_client.py</code>, <code>strategy.py</code>, <code>claude_reasoner.py</code>, <code>visuals.py</code>, <code>emailer.py</code>, <code>backtest.py</code>, <code>requirements.txt</code>, <code>.env.example</code>) into one folder. Open that folder as a project in PyCharm.</p>
+  </div>
+
+  <div class="step">
+    <div class="step-header"><div class="step-num">11</div><p class="step-title">Get a Gmail "app password"</p></div>
+    <p>This is different from your normal Gmail password — Google requires it for scripts sending email.</p>
+    <p>Turn on 2-factor authentication on your Google account if it isn't already, then go to <a href="https://myaccount.google.com/apppasswords">myaccount.google.com/apppasswords</a> and generate one. Copy the 16-character code.</p>
+  </div>
+
+  <div class="step">
+    <div class="step-header"><div class="step-num">12</div><p class="step-title">Create your .env file</p></div>
+    <p>In PyCharm's file list, copy <code>.env.example</code> and rename the copy to exactly <code>.env</code>.</p>
+    <p>Open it and fill in your real values: your Anthropic API key, your FPL team ID, the rival team ID you want to benchmark against, your Gmail address, and the app password from Step 11.</p>
+  </div>
+
+  <div class="step">
+    <div class="step-header"><div class="step-num">13</div><p class="step-title">Install dependencies and run it</p></div>
+    <p>Open PyCharm's terminal (bottom toolbar) and run:</p>
+    <pre>pip install -r requirements.txt
+python agent.py</pre>
+    <p>Leave this terminal window open — the agent checks every 30 minutes and only emails you once, within the window before each deadline (default 3 hours, adjustable in <code>.env</code>).</p>
+    <div class="callout warn">Closing the terminal stops the agent. See <code>README_agent.md</code> for how to keep it running long-term (tmux on Mac, Task Scheduler on Windows).</div>
+  </div>
+
+  <div class="step">
+    <div class="step-header"><div class="step-num">14</div><p class="step-title">Try the backtest first</p></div>
+    <p>Before waiting for a real deadline, test everything works by running:</p>
+    <pre>python backtest.py --event 1 --send</pre>
+    <p>Check your inbox for an email clearly marked <strong>[BACKTEST]</strong>.</p>
+  </div>
+
+  <div class="partlabel" style="margin-top:48px;">Final checklist</div>
+  <div class="step">
+    <ul class="checklist">
+      <li>GitHub repo created with all files in the right folders</li>
+      <li>App deployed and loads at your .streamlit.app URL</li>
+      <li>Anthropic API key added under Streamlit Secrets</li>
+      <li>App icon added to phone home screen</li>
+      <li>(Optional) .env filled in for the local agent</li>
+      <li>(Optional) Backtest email received successfully</li>
+    </ul>
+  </div>
+
+</div>
+</body>
+</html>

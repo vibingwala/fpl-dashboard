@@ -77,6 +77,11 @@ def estimate_free_transfers(history):
     return ft
 
 
+def get_chips_used(history):
+    """List of chips already played this season, in order."""
+    return [gw["active_chip"] for gw in history["current"] if gw.get("active_chip")]
+
+
 def build_player_lookup(bootstrap):
     teams = {t["id"]: t for t in bootstrap["teams"]}
     players = {}
