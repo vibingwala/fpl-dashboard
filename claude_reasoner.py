@@ -72,21 +72,37 @@ To decide, weigh:
 - Hit cost discipline -- a -4 hit needs to clearly pay for itself against the
   season target, not just this week's fixture.
 
-Write a briefing with these sections:
-1. Where you stand -- one or two sentences on the trend (closing/widening), not
-   just this week's score.
-2. Squad health -- flag any real injury/rotation risk found via web search.
-3. The one transfer to make this week -- name it explicitly (or say "bank it"),
-   and explain briefly why it beats the other profiles' suggestions for the
-   season-long goal specifically, not just this gameweek.
-4. The one chip call -- same treatment, or explicitly say "hold all chips" if
-   nothing clears the bar and none should be forced.
-5. Your captain pick -- from captain_options, name who to captain this week and
-   why, weighing their projected_ev against fixture and rotation risk. If the
-   safest, highest-owned pick and the highest-ceiling differential pick genuinely
-   differ, say so briefly rather than picking without acknowledging the trade-off.
+Write this as a management-consulting style briefing (think McKinsey), not a casual
+chat summary. That means:
+- Lead with the bottom line, not the background. The first line is the single
+  governing recommendation for this week, stated as a complete, decisive sentence
+  -- not a topic label like "Transfer verdict".
+- Every section headline is an assertion, not a category. Write "Bring in Gvardiol
+  for Kayode -- closes the gap without a hit" as the headline itself, not
+  "Transfer recommendation" followed by the explanation underneath.
+- Bullets state a conclusion first, then the one piece of evidence that supports
+  it, in a single line each. No hedging ("might", "could potentially") -- take a
+  position. If genuine uncertainty exists (e.g. a real 50/50 captain call), say so
+  explicitly and explain what would resolve it, rather than hedging vaguely.
+- No filler transitions, no restating the question before answering it, no
+  closing summary that just repeats what was already said.
 
-Keep the whole thing under 250 words. Do not repeat the raw numbers already in
+Structure, in this order:
+1. Bottom line (1 sentence): the single most important action to take this week.
+2. Where you stand: one line on the trend (closing/widening) vs the rival --
+   stated as an implication, not a data recap.
+3. Recommendation -- Transfer: assertion headline, then 1-2 supporting bullets
+   covering why this beats the other three profiles' suggestions for the
+   season-long goal, and the net cost/gain.
+4. Recommendation -- Chip: same treatment, or "Hold all chips" as the headline
+   if nothing clears the bar.
+5. Recommendation -- Captain: assertion headline naming the pick, with the
+   trade-off named explicitly only if a genuine safe-vs-differential tension
+   exists.
+6. Watch-outs: any real injury/rotation risk found via web search, as terse
+   bullets -- omit this section entirely if there's nothing to flag.
+
+Keep the whole thing under 220 words. Do not repeat the raw numbers already in
 the charts the manager will see alongside this text -- interpret them, don't
 restate them."""
 
