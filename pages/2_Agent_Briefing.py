@@ -12,7 +12,7 @@ import streamlit as st
 from fpl_data import (
     get_bootstrap, get_fixtures, get_entry_history, get_picks,
     get_current_event, get_next_deadline, estimate_free_transfers,
-    build_player_lookup, get_chips_used,
+    build_player_lookup, get_chips_used, build_team_strength,
 )
 from strategy import suggest_transfers, suggest_chip, suggest_captain, PROFILES
 from visuals import cumulative_points_chart, gap_bar_chart, transfer_options_chart
@@ -115,6 +115,7 @@ if st.session_state[cache_key] is None:
         try:
             fixtures = get_fixtures()
             players = build_player_lookup(bootstrap)
+            team_strength = build_team_strength(bootstrap)
             current_event = get_current_event(bootstrap)
 
             my_history = get_entry_history(entry_id)
@@ -132,14 +133,15 @@ if st.session_state[cache_key] is None:
             for profile in PROFILES:
                 suggestions_by_profile[profile] = suggest_transfers(
                     profile, squad_players, players, fixtures, next_event, bank, free_transfers,
+                    team_strength=team_strength,
                 )
                 chip, reason = suggest_chip(
                     profile, squad_players, bench_players, fixtures, next_event, ev_trend,
-                    is_blank_or_double_soon=False,
+                    is_blank_or_double_soon=False, team_strength=team_strength,
                 )
                 chips_by_profile[profile] = {"chip": chip, "reason": reason}
 
-            captain_options = suggest_captain(squad_players, fixtures, next_event)
+            captain_options = suggest_captain(squad_players, fixtures, next_event, team_strength=team_strength)
 
             context = {
                 "gameweek": next_event,
