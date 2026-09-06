@@ -94,6 +94,7 @@ def build_player_lookup(bootstrap):
             "element_type": p["element_type"],
             "team_id": p["team"],
             "team_name": team.get("short_name", ""),
+            "team_short": team.get("short_name", "?"),  # alias for ui_components.py's expected key
             "price": p["now_cost"] / 10,
             "form": float(p.get("form") or 0),
             "selected_by_percent": float(p.get("selected_by_percent") or 0),
