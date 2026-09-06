@@ -6,19 +6,12 @@ Run with: streamlit run app.py
 import streamlit as st
 import requests
 
+from settings import settings_sidebar, get_settings
+from ui_components import build_player_lookup, render_pitch, THEME_CSS
+
 st.set_page_config(page_title="FPL Squad View", page_icon="⚽", layout="wide")
 
 FPL_BASE = "https://fantasy.premierleague.com/api"
-CREST_URL = "https://resources.premierleague.com/premierleague/badges/70/t{code}.png"
-
-POSITION_NAMES = {1: "GKP", 2: "DEF", 3: "MID", 4: "FWD"}
-
-
-def _flatten(html: str) -> str:
-    """Strip leading whitespace from every line. Markdown treats 4+ leading
-    spaces as a code block regardless of unsafe_allow_html, which silently
-    turns rendered HTML into literal displayed text -- this prevents that."""
-    return "\n".join(line.strip() for line in html.strip().split("\n"))
 
 
 # ---------- Data fetching ----------
@@ -63,191 +56,12 @@ def get_entry_info(entry_id):
     return r.json()
 
 
-# Curated real club colors, shown as a slim accent bar rather than a filled
-# badge -- reads as understated club identity, not a cartoon crest.
-TEAM_COLORS = {
-    "ARS": "#EF0107", "AVL": "#95BFE5", "BOU": "#DA291C", "BRE": "#e30613",
-    "BHA": "#0057B8", "BUR": "#6C1D45", "CHE": "#034694", "CRY": "#1B458F",
-    "EVE": "#003399", "FUL": "#CCCCCC", "IPS": "#3A64A3", "LEI": "#003090",
-    "LEE": "#FFCD00", "LIV": "#C8102E", "MCI": "#6CABDD", "MUN": "#DA291C",
-    "NEW": "#8C8C8C", "NFO": "#DD0000", "SOU": "#D71920", "TOT": "#132257",
-    "WHU": "#7A263A", "WOL": "#FDB913", "SUN": "#EB172B", "HUL": "#F18A01",
-    "COV": "#78D0F7", "MID": "#FF0000",
-}
-FALLBACK_PALETTE = ["#8B7FD9", "#4FB89A", "#D98A5C", "#C97AA0", "#5C9FD9"]
-GOLD = "#C9A24B"
-
-
-def team_color(short_name):
-    if short_name in TEAM_COLORS:
-        return TEAM_COLORS[short_name]
-    idx = sum(ord(c) for c in short_name) % len(FALLBACK_PALETTE)
-    return FALLBACK_PALETTE[idx]
-
-
-def build_player_lookup(bootstrap):
-    teams = {t["id"]: t for t in bootstrap["teams"]}
-    players = {}
-    for p in bootstrap["elements"]:
-        team = teams.get(p["team"], {})
-        players[p["id"]] = {
-            "name": p["web_name"],
-            "position": POSITION_NAMES.get(p["element_type"], "?"),
-            "team_short": team.get("short_name", "?"),
-            "team_name": team.get("name", ""),
-            "points": p.get("event_points", 0),
-            "total_points": p.get("total_points", 0),
-            "price": p["now_cost"] / 10,
-            "form": p.get("form", "0"),
-            "news": p.get("news", ""),
-            "status": p.get("status", "a"),
-        }
-    return players
-
-
-# ---------- Rendering ----------
-
-def player_row_html(player, is_captain=False, is_vice=False, multiplier=1):
-    accent = team_color(player["team_short"])
-    tag = ""
-    if is_captain:
-        tag = '<span class="tag captain">C</span>'
-    elif is_vice:
-        tag = '<span class="tag vice">V</span>'
-    flag = '<span class="flag-dot"></span>' if player["status"] != "a" else ""
-    pts = player["points"] * multiplier
-
-    return _flatten(f"""
-    <div class="prow" style="border-left-color:{accent};">
-        <div class="prow-main">
-            <span class="pname">{player['name']}</span>
-            {tag}{flag}
-            <span class="pteam">{player['team_short']}</span>
-        </div>
-        <div class="prow-stats">
-            <span class="pprice">£{player['price']:.1f}</span>
-            <span class="ppoints">{pts}</span>
-        </div>
-    </div>
-    """)
-
-
-def render_pitch(picks, players):
-    starters = [p for p in picks if p["multiplier"] > 0]
-    bench = [p for p in picks if p["multiplier"] == 0]
-
-    by_pos = {"GKP": [], "DEF": [], "MID": [], "FWD": []}
-    for pick in starters:
-        player = players[pick["element"]]
-        by_pos[player["position"]].append((pick, player))
-
-    section_labels = {"GKP": "Goalkeeper", "DEF": "Defence", "MID": "Midfield", "FWD": "Attack"}
-    sections_html = ""
-    for pos in ["GKP", "DEF", "MID", "FWD"]:
-        rows = "".join(
-            player_row_html(player, pick["is_captain"], pick["is_vice_captain"], pick["multiplier"])
-            for pick, player in by_pos[pos]
-        )
-        sections_html += _flatten(f"""
-        <div class="section">
-            <div class="section-label">{section_labels[pos]}</div>
-            {rows}
-        </div>
-        """)
-
-    bench_rows = "".join(player_row_html(players[p["element"]]) for p in bench)
-
-    return sections_html, bench_rows
-
-
-THEME_CSS = """
-<style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap');
-
-html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
-
-.sheet {
-    background: #121815;
-    border-radius: 6px;
-    padding: 4px 0 12px;
-    border: 1px solid #223028;
-}
-.section { padding: 10px 16px 4px; }
-.section-label {
-    font-size: 11px;
-    color: #C9A24B;
-    font-weight: 600;
-    letter-spacing: 0.4px;
-    margin: 6px 0 6px;
-    border-bottom: 1px solid #223028;
-    padding-bottom: 4px;
-}
-.prow {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 8px 10px;
-    margin-bottom: 4px;
-    background: #182019;
-    border-left: 3px solid #444;
-    border-radius: 3px;
-}
-.prow-main { display: flex; align-items: center; gap: 8px; min-width: 0; }
-.pname {
-    color: #EDEDE8;
-    font-size: 14px;
-    font-weight: 500;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-.pteam {
-    color: #7A8580;
-    font-size: 11px;
-    font-family: 'IBM Plex Mono', monospace;
-    flex-shrink: 0;
-}
-.tag {
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 10px;
-    font-weight: 600;
-    padding: 1px 5px;
-    border-radius: 3px;
-    flex-shrink: 0;
-}
-.tag.captain { background: #C9A24B; color: #121815; }
-.tag.vice { background: #4A5A50; color: #EDEDE8; }
-.flag-dot {
-    width: 6px; height: 6px; border-radius: 50%;
-    background: #C1443B; flex-shrink: 0;
-}
-.prow-stats {
-    display: flex;
-    gap: 14px;
-    font-family: 'IBM Plex Mono', monospace;
-    flex-shrink: 0;
-}
-.pprice { color: #7A8580; font-size: 12px; }
-.ppoints { color: #E8E4D8; font-size: 14px; font-weight: 600; min-width: 20px; text-align: right; }
-
-.bench-label {
-    font-size: 11px;
-    color: #7A8580;
-    font-weight: 600;
-    letter-spacing: 0.4px;
-    margin: 16px 0 6px 4px;
-}
-</style>
-"""
-
-
 def main():
     st.title("My squad")
 
-    with st.sidebar:
-        st.header("Settings")
-        entry_id = st.text_input("Your FPL team ID", value="3486295")
-        st.caption("Find this in the URL when viewing your team on the FPL site.")
+    settings_sidebar()
+    cfg = get_settings()
+    entry_id = cfg["team_id"]
 
     if not entry_id.strip().isdigit():
         st.warning("Enter a numeric team ID in the sidebar.")
@@ -272,33 +86,48 @@ def main():
     event_id = next_event if "Upcoming" in view_choice else current_event
     viewing_upcoming = "Upcoming" in view_choice
 
-    try:
-        picks_data = get_picks(entry_id, event_id)
-    except requests.RequestException as e:
-        if viewing_upcoming:
-            st.warning(
-                "FPL's public API doesn't expose your squad for an upcoming, "
-                "not-yet-locked gameweek -- only finalized ones. Seeing live "
-                "pending transfers before deadline would need a logged-in FPL "
-                "session, which this app doesn't set up. Showing your current "
-                "locked squad instead."
-            )
-            event_id = current_event
-            viewing_upcoming = False
-            try:
-                picks_data = get_picks(entry_id, event_id)
-            except requests.RequestException as e2:
-                st.error(f"Couldn't reach the FPL API: {e2}")
-                return
-        else:
-            st.error(f"Couldn't reach the FPL API: {e}")
-            return
-
-    if viewing_upcoming:
+    if viewing_upcoming and cfg["is_logged_in"] and cfg["live_picks"]:
+        picks_data = {
+            "picks": cfg["live_picks"],
+            "entry_history": {
+                "points": 0, "total_points": entry_info.get("summary_overall_points", 0),
+                "bank": int(cfg["bank"] * 10), "overall_rank": entry_info.get("summary_overall_rank", 0),
+            },
+        }
         st.caption(
-            "This is your provisional squad for next gameweek -- it reflects "
-            "transfers you've made but haven't locked in yet, and can still change."
+            "This is your live provisional squad for next gameweek, pulled from "
+            "your logged-in FPL account -- reflects transfers you've made but "
+            "haven't locked in yet."
         )
+    else:
+        try:
+            picks_data = get_picks(entry_id, event_id)
+        except requests.RequestException as e:
+            if viewing_upcoming:
+                st.warning(
+                    "FPL's public API doesn't expose your squad for an upcoming, "
+                    "not-yet-locked gameweek -- only finalized ones. " +
+                    ("Login is configured but wasn't able to fetch this -- check "
+                     "the sidebar for the auth error. " if cfg["auth_error"] else
+                     "Add FPL_EMAIL and FPL_PASSWORD to Secrets to see this live. ") +
+                    "Showing your current locked squad instead."
+                )
+                event_id = current_event
+                viewing_upcoming = False
+                try:
+                    picks_data = get_picks(entry_id, event_id)
+                except requests.RequestException as e2:
+                    st.error(f"Couldn't reach the FPL API: {e2}")
+                    return
+            else:
+                st.error(f"Couldn't reach the FPL API: {e}")
+                return
+
+        if viewing_upcoming:
+            st.caption(
+                "This is your provisional squad for next gameweek -- it reflects "
+                "transfers you've made but haven't locked in yet, and can still change."
+            )
 
     players = build_player_lookup(bootstrap)
 

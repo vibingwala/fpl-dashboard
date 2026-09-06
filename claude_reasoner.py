@@ -1,7 +1,10 @@
 """
-Calls the Claude API to generate the narrative analysis: performance review,
-structural comparison to the rival, and a final synthesized recommendation
-across all four strategy profiles, judged against the season-long target.
+M2 + M3 -- Structured recommendation with iterative research.
+
+Replaces free-text prose with a forced structured output (via Claude's
+native tool-use), and lets the model run multiple web searches within the
+same call before committing to a final recommendation -- genuine iterative
+research instead of one search pass dressed up as one.
 """
 
 import json
@@ -10,132 +13,127 @@ import requests
 ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages"
 MODEL = "claude-sonnet-4-6"
 
+RECOMMENDATION_TOOL = {
+    "name": "submit_recommendation",
+    "description": "Submit the final weekly FPL recommendation once research is complete.",
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "bottom_line": {"type": "string", "description": "One-sentence governing recommendation."},
+            "transfer": {
+                "type": "object",
+                "properties": {
+                    "action": {"type": "string", "description": "e.g. 'Kayode -> Gvardiol' or 'Bank it'"},
+                    "rationale": {"type": "string"},
+                    "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+                },
+                "required": ["action", "rationale", "confidence"],
+            },
+            "chip": {
+                "type": "object",
+                "properties": {
+                    "action": {"type": "string", "description": "Chip name or 'Hold all chips'"},
+                    "rationale": {"type": "string"},
+                    "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+                },
+                "required": ["action", "rationale", "confidence"],
+            },
+            "captain": {
+                "type": "object",
+                "properties": {
+                    "action": {"type": "string", "description": "Player name to captain"},
+                    "rationale": {"type": "string"},
+                    "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+                },
+                "required": ["action", "rationale", "confidence"],
+            },
+            "watch_outs": {
+                "type": "array", "items": {"type": "string"},
+                "description": "Real injury/rotation risks found via search. Empty list if none.",
+            },
+            "sources": {
+                "type": "array", "items": {"type": "string"},
+                "description": "Brief descriptions of sources actually checked, e.g. 'BBC Sport team news'.",
+            },
+        },
+        "required": ["bottom_line", "transfer", "chip", "captain", "watch_outs", "sources"],
+    },
+}
+
 
 class ClaudeAPIError(Exception):
-    """Raised with a human-readable explanation instead of a bare HTTP error."""
     pass
 
 
-def _extract_text(content_blocks):
-    return "\n".join(b["text"] for b in content_blocks if b.get("type") == "text")
+def _build_prompt(context, validation_feedback=None):
+    free_transfers = context.get("free_transfers")
+    bank = context.get("bank")
+    rival_mode = context.get("rival_mode", "Season-long (beat their cumulative total)")
+    is_head_to_head = "Head-to-head" in rival_mode
+
+    goal_statement = (
+        "beat their score in THIS gameweek specifically -- a strong week now matters "
+        "more than season-long conservatism, since head-to-head resets every week"
+        if is_head_to_head else
+        "finish the season with a higher cumulative total than theirs -- a single "
+        "bad gameweek matters far less than the season-long trend"
+    )
+
+    correction_block = ""
+    if validation_feedback:
+        correction_block = f"""
+YOUR PREVIOUS ATTEMPT WAS REJECTED for this specific reason: {validation_feedback}
+Fix exactly this issue and resubmit via submit_recommendation. Do not repeat the same mistake.
+"""
+
+    return f"""You are a sharp FPL (Fantasy Premier League) analyst. The manager is a
+mathematician who dislikes walls of text and wants management-consulting-style output:
+decisive, assertion-first, no hedging without cause.
+
+HARD CONSTRAINT: the manager has exactly {free_transfers} free transfer(s) and a bank of
+£{bank}m. Any transfer beyond the free count costs -4 points as a hit -- name this cost
+explicitly if you recommend it. Never recommend combining transfers from different
+strategy profiles without accounting for the total hit cost.
+
+GOAL: {goal_statement} (the rival benchmark in the data below).
+
+Research before you answer: use web_search as many times as genuinely useful -- check
+squad injury/rotation news AND the opponent's actual current form (not just their
+season-long strength rating) for the transfer and captain decisions. Follow up with a
+second search if the first result is ambiguous. Do not guess when you can check.
+
+Once research is sufficient, call submit_recommendation with your final answer. Do not
+recommend a chip already in chips_used. Do not write prose outside the tool call --
+the tool call IS the answer.
+{correction_block}
+Data:
+{json.dumps(context, indent=2)}"""
 
 
-def generate_weekly_analysis(api_key, context: dict) -> str:
+def generate_recommendation(api_key, context: dict, validation_feedback=None) -> dict:
     """
-    context should include: gameweek, my_total, rival_total, points_trend
-    (per-gameweek you-vs-rival history), bank, free_transfers, captain_options,
-    transfer_suggestions (by profile), chip_suggestions (by profile),
-    chips_used (list already played), squad_status_flags.
-    Returns a plain-text/markdown narrative ready to drop into the email
-    or app page.
+    Returns the structured recommendation dict (matching RECOMMENDATION_TOOL's
+    schema) plus '_raw_text' (any prose reasoning alongside the tool call, for
+    transparency/debugging).
 
-    Raises ClaudeAPIError with a specific, actionable message on failure,
-    instead of letting a generic HTTP error surface.
+    validation_feedback: if this is a retry after M4's self-critique rejected
+    a previous attempt, pass the specific violation here so the model corrects
+    it directly rather than starting from scratch.
     """
     if not api_key or not api_key.startswith("sk-ant-"):
         raise ClaudeAPIError(
             "That doesn't look like a valid Anthropic API key (should start with "
-            "'sk-ant-'). Check console.anthropic.com and make sure you copied the "
-            "full key, and that it's set correctly in Streamlit Secrets."
+            "'sk-ant-'). Check console.anthropic.com and Streamlit Secrets."
         )
-
-    free_transfers = context.get("free_transfers", context.get("free_transfers_estimated"))
-    bank = context.get("bank")
-
-    prompt = f"""You are a sharp, concise FPL (Fantasy Premier League) analyst writing a
-weekly briefing for a manager who is a mathematician and dislikes walls of text.
-Use short paragraphs and bullet points. Be direct about what actually matters.
-
-HARD CONSTRAINT -- read this before anything else: the manager has exactly
-{free_transfers} free transfer(s) available this week, and a bank of £{bank}m.
-Any transfer beyond that count costs -4 points as a hit. The four strategy
-profiles below were each computed independently and may each assume their own
-single transfer in isolation -- they are NOT necessarily compatible with each
-other. Never recommend making two (or more) of these profiles' transfers
-together unless you explicitly call out the resulting hit cost and justify it.
-If {free_transfers} is 1, your final recommendation must be exactly one transfer
-(or zero, i.e. bank it) -- never phrase it as "make both" or list multiple
-transfers as if they're free just because they came from different profiles.
-
-The manager's season-long goal is explicit and singular: finish the season with a
-higher total than their tracked rival (the benchmark in this data). Every
-recommendation you make should be judged against that goal, not just this week
-in isolation.
-
-Here is this week's data as JSON:
-{json.dumps(context, indent=2)}
-
-You have been given FOUR separate strategy profiles (template, differential,
-aggressive, conservative), each with their own transfer and chip suggestion
-computed independently. Your job is NOT to just report all four -- it's to reason
-across them and commit to ONE recommendation, the way a single decisive analyst
-would.
-
-To decide, weigh:
-- Trend direction: is the gap to the rival closing or widening across recent
-  gameweeks (see points_trend)? If widening, favor the more aggressive or
-  differential options -- protecting a lead that doesn't exist yet is the wrong
-  instinct. If the gap is small or closing, a safer template/conservative move
-  that avoids unforced errors may serve the season target better.
-- Chips already used (see chips_used) -- never recommend a chip that's already
-  been played this season. If unsure how many of each chip remain available
-  under the current season's rules, use web search to check rather than assume.
-- Opposition quality and current form -- the fixture data already accounts for
-  the opponent's season-long attack/defence strength, but that's a static
-  rating. Use web search to check the actual opponent's recent form (last
-  3-5 results), any key injuries or suspensions on THEIR side that change the
-  picture, and their current league position/momentum. A fixture that looks
-  easy on paper against a team on a current unbeaten run, or hard on paper
-  against a team missing their first-choice defence, deserves a different call
-  than the static rating alone suggests -- factor this into both the transfer
-  and captaincy reasoning explicitly, not just your own players' news.
-- Squad health -- use web search for any current injury/rotation news on flagged
-  players (squad_status_flags) or on players mentioned in the transfer options,
-  beyond your training data cutoff.
-- Hit cost discipline -- a -4 hit needs to clearly pay for itself against the
-  season target, not just this week's fixture.
-
-Write this as a management-consulting style briefing (think McKinsey), not a casual
-chat summary. That means:
-- Lead with the bottom line, not the background. The first line is the single
-  governing recommendation for this week, stated as a complete, decisive sentence
-  -- not a topic label like "Transfer verdict".
-- Every section headline is an assertion, not a category. Write "Bring in Gvardiol
-  for Kayode -- closes the gap without a hit" as the headline itself, not
-  "Transfer recommendation" followed by the explanation underneath.
-- Bullets state a conclusion first, then the one piece of evidence that supports
-  it, in a single line each. No hedging ("might", "could potentially") -- take a
-  position. If genuine uncertainty exists (e.g. a real 50/50 captain call), say so
-  explicitly and explain what would resolve it, rather than hedging vaguely.
-- No filler transitions, no restating the question before answering it, no
-  closing summary that just repeats what was already said.
-
-Structure, in this order:
-1. Bottom line (1 sentence): the single most important action to take this week.
-2. Where you stand: one line on the trend (closing/widening) vs the rival --
-   stated as an implication, not a data recap.
-3. Recommendation -- Transfer: assertion headline, then 1-2 supporting bullets
-   covering why this beats the other three profiles' suggestions for the
-   season-long goal, the net cost/gain, and what the opponent's current form
-   (not just their season-long rating) adds to the picture.
-4. Recommendation -- Chip: same treatment, or "Hold all chips" as the headline
-   if nothing clears the bar.
-5. Recommendation -- Captain: assertion headline naming the pick, weighing their
-   opponent's actual current form and defensive/attacking record alongside your
-   own player's data. Name the trade-off explicitly only if a genuine
-   safe-vs-differential tension exists.
-6. Watch-outs: any real injury/rotation risk found via web search, as terse
-   bullets -- omit this section entirely if there's nothing to flag.
-
-Keep the whole thing under 220 words. Do not repeat the raw numbers already in
-the charts the manager will see alongside this text -- interpret them, don't
-restate them."""
 
     payload = {
         "model": MODEL,
-        "max_tokens": 1200,
-        "messages": [{"role": "user", "content": prompt}],
-        "tools": [{"type": "web_search_20250305", "name": "web_search"}],
+        "max_tokens": 2000,
+        "messages": [{"role": "user", "content": _build_prompt(context, validation_feedback)}],
+        "tools": [
+            {"type": "web_search_20250305", "name": "web_search"},
+            RECOMMENDATION_TOOL,
+        ],
     }
     headers = {
         "x-api-key": api_key,
@@ -144,38 +142,30 @@ restate them."""
     }
 
     try:
-        response = requests.post(ANTHROPIC_API_URL, headers=headers, json=payload, timeout=60)
+        response = requests.post(ANTHROPIC_API_URL, headers=headers, json=payload, timeout=90)
     except requests.RequestException as e:
         raise ClaudeAPIError(f"Network error reaching the Claude API: {e}")
 
     if response.status_code == 401:
-        raise ClaudeAPIError(
-            "Authentication failed (401) -- the API key was rejected. "
-            "Double-check it's copied correctly and hasn't been revoked."
-        )
+        raise ClaudeAPIError("Authentication failed (401) -- check the API key.")
     if response.status_code == 404:
-        raise ClaudeAPIError(
-            f"Model not found (404) -- '{MODEL}' may have been retired. "
-            "Check console.anthropic.com/docs for the current model list."
-        )
+        raise ClaudeAPIError(f"Model not found (404) -- '{MODEL}' may have been retired.")
     if response.status_code == 429:
-        raise ClaudeAPIError(
-            "Rate limited (429) -- too many requests, or your account needs "
-            "billing credit added. Check console.anthropic.com's usage page."
-        )
+        raise ClaudeAPIError("Rate limited (429) -- check billing/usage at console.anthropic.com.")
     if response.status_code >= 400:
-        # Surface the real body instead of a generic message -- this is what
-        # actually tells us what went wrong.
-        raise ClaudeAPIError(
-            f"Claude API returned HTTP {response.status_code}. Response body: "
-            f"{response.text[:500]}"
-        )
+        raise ClaudeAPIError(f"Claude API returned HTTP {response.status_code}: {response.text[:500]}")
 
     data = response.json()
-    text = _extract_text(data.get("content", []))
-    if not text:
+    content = data.get("content", [])
+
+    tool_call = next((b for b in content if b.get("type") == "tool_use" and b.get("name") == "submit_recommendation"), None)
+    if not tool_call:
         raise ClaudeAPIError(
-            f"Got a 200 response but no text content back. Raw response: "
-            f"{json.dumps(data)[:500]}"
+            "Claude didn't call submit_recommendation -- it may have run out of steps "
+            "mid-research. Try regenerating."
         )
-    return text
+
+    raw_text = "\n".join(b["text"] for b in content if b.get("type") == "text")
+    result = dict(tool_call["input"])
+    result["_raw_text"] = raw_text
+    return result

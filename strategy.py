@@ -109,11 +109,32 @@ def suggest_captain(squad_players, fixtures, from_event, n=3, team_strength=None
 
 
 def suggest_chip(profile, squad_players, bench_players, fixtures, from_event,
-                  gw_ev_trend, is_blank_or_double_soon, team_strength=None):
+                  gw_ev_trend, is_blank_or_double_soon, team_strength=None, chips_used=None):
     """
     Returns (chip_name_or_None, reason_string).
     Thresholds tighten from aggressive -> conservative.
+    chips_used: list of chip names already played this season (e.g. from the
+    my-team endpoint or derived from history) -- these are never re-suggested.
     """
+    chips_used = chips_used or []
+    # Normalize FPL's internal chip codes (e.g. "3xc", "bboost") to the
+    # display names used below, so a match against either form works.
+    used_normalized = {c.lower().replace(" ", "") for c in chips_used}
+    # NOTE: current FPL rules allow Wildcard and Free Hit to be used once per
+    # half-season (twice total). This treats any prior use as "used" and
+    # won't suggest a second one -- a simplification, not a bug, until this
+    # is extended to track which half each use fell in.
+    CHIP_CODES = {
+        "triple captain": {"triplecaptain", "3xc"},
+        "bench boost": {"benchboost", "bboost"},
+        "free hit": {"freehit"},
+        "wildcard": {"wildcard"},
+    }
+
+    def already_used(display_name):
+        codes = CHIP_CODES.get(display_name.lower(), {display_name.lower().replace(" ", "")})
+        return bool(used_normalized & codes)
+
     thresholds = {
         "aggressive": {"tc_multiplier": 1.15, "bb_min_prob": 0.6},
         "template": {"tc_multiplier": 1.3, "bb_min_prob": 0.75},
@@ -122,22 +143,26 @@ def suggest_chip(profile, squad_players, bench_players, fixtures, from_event,
     }[profile]
 
     # Triple captain: best captain candidate's EV vs their own season baseline
-    best = max(squad_players, key=lambda p: expected_value(p, fixtures, from_event, 1, team_strength))
-    best_ev = expected_value(best, fixtures, from_event, 1, team_strength)
-    baseline = expected_value(best, fixtures, max(from_event - 4, 1), 4, team_strength) / 4
-    if baseline > 0 and best_ev / baseline >= thresholds["tc_multiplier"]:
-        return "Triple Captain", f"{best['name']}'s projected EV this week is {round(best_ev/baseline,2)}x their recent baseline."
+    if not already_used("Triple Captain"):
+        best = max(squad_players, key=lambda p: expected_value(p, fixtures, from_event, 1, team_strength))
+        best_ev = expected_value(best, fixtures, from_event, 1, team_strength)
+        baseline = expected_value(best, fixtures, max(from_event - 4, 1), 4, team_strength) / 4
+        if baseline > 0 and best_ev / baseline >= thresholds["tc_multiplier"]:
+            return "Triple Captain", f"{best['name']}'s projected EV this week is {round(best_ev/baseline,2)}x their recent baseline."
 
     # Bench boost: all bench players clear a minutes-probability bar
-    bench_probs = [minutes_probability(p) for p in bench_players]
-    if bench_probs and min(bench_probs) >= thresholds["bb_min_prob"]:
-        return "Bench Boost", "All four bench players clear the minutes-probability threshold this week."
+    if not already_used("Bench Boost"):
+        bench_probs = [minutes_probability(p) for p in bench_players]
+        if bench_probs and min(bench_probs) >= thresholds["bb_min_prob"]:
+            return "Bench Boost", "All four bench players clear the minutes-probability threshold this week."
 
     # Free hit: blank/double gameweek detected
-    if is_blank_or_double_soon:
+    if is_blank_or_double_soon and not already_used("Free Hit"):
         return "Free Hit", "A blank or double gameweek is coming up that badly skews your fixture list."
 
     # Wildcard: sustained downward trend in squad EV
+    if already_used("Wildcard"):
+        return None, "No chip clears this profile's threshold this week (Wildcard already used)."
     if len(gw_ev_trend) >= 3 and all(
         gw_ev_trend[i] < gw_ev_trend[i - 1] for i in range(-2, 0)
     ):

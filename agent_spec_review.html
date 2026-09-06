@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>FPL Agent — Spec &amp; Mockup for Review</title>
+<style>
+  :root {
+    --bg: #0D1210;
+    --panel: #121815;
+    --panel2: #182019;
+    --border: #223028;
+    --gold: #C9A24B;
+    --text: #EDEDE8;
+    --muted: #7A8580;
+    --green: #4C9A6A;
+    --red: #C1443B;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: 'Inter', -apple-system, Segoe UI, Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    margin: 0;
+    padding: 0 0 80px;
+  }
+  header {
+    padding: 36px 20px 28px;
+    border-bottom: 1px solid var(--border);
+  }
+  header h1 { margin: 0 0 6px; font-size: 24px; font-weight: 600; }
+  header p { margin: 0; color: var(--muted); font-size: 14px; }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 0 16px; }
+  .status-banner {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--gold);
+    border-radius: 6px;
+    padding: 14px 18px;
+    margin: 24px 0;
+    font-size: 14px;
+  }
+  h2 {
+    color: var(--gold);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    margin: 48px 0 4px;
+    font-weight: 600;
+  }
+  h3 { font-size: 19px; margin: 4px 0 14px; font-weight: 600; }
+  p.lead { color: var(--muted); font-size: 14.5px; line-height: 1.6; margin: 0 0 20px; }
+  code {
+    background: #1a221d;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: 'IBM Plex Mono', Menlo, monospace;
+    font-size: 12.5px;
+  }
+
+  .flow { display: flex; flex-direction: column; align-items: center; gap: 0; margin: 20px 0 8px; }
+  .flow-node {
+    background: var(--panel2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 20px;
+    width: 100%;
+    max-width: 320px;
+    text-align: center;
+  }
+  .flow-node.critique { border-color: var(--red); }
+  .flow-node.act { border-color: var(--gold); }
+  .flow-node.memory { border-color: var(--green); }
+  .flow-node .label { font-weight: 600; font-size: 14px; }
+  .flow-node .sub { font-size: 11.5px; color: var(--muted); margin-top: 2px; }
+  .flow-arrow { color: var(--muted); font-size: 18px; padding: 4px 0; }
+  .flow-loop {
+    font-size: 11px; color: var(--red); border: 1px dashed var(--red);
+    border-radius: 20px; padding: 3px 12px; margin: 2px 0;
+  }
+  .flow-feedback {
+    font-size: 11px; color: var(--green); text-align: center; margin-top: 8px;
+    border-top: 1px dashed var(--green); padding-top: 8px; width: 100%; max-width: 320px;
+  }
+
+  table.spec { width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 12px; }
+  table.spec th {
+    text-align: left; color: var(--muted); font-weight: 500; font-size: 11px;
+    text-transform: uppercase; letter-spacing: 0.4px; padding: 6px 8px;
+    border-bottom: 1px solid var(--border);
+  }
+  table.spec td { padding: 8px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  .module-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px 20px;
+    margin-bottom: 16px;
+  }
+  .module-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+  .module-id { font-family: 'IBM Plex Mono', monospace; color: var(--gold); font-size: 13px; }
+  .pill {
+    font-size: 10.5px; font-weight: 600; padding: 3px 10px; border-radius: 20px;
+    text-transform: uppercase; letter-spacing: 0.3px;
+  }
+  .pill.designed { background: rgba(76,154,106,0.15); color: var(--green); }
+  .pill.proposed { background: rgba(122,133,128,0.2); color: var(--muted); }
+  .pill.gated { background: rgba(193,68,59,0.15); color: var(--red); }
+
+  .mockup-frame {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    margin: 16px 0 32px;
+  }
+  .decision-card {
+    background: var(--panel);
+    border-radius: 8px;
+    padding: 14px 16px;
+    margin-bottom: 10px;
+  }
+  .decision-card.current { border: 1px solid var(--gold); }
+  .decision-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
+  .gw-tag { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--muted); }
+  .outcome-badge { font-size: 11px; font-weight: 600; padding: 2px 9px; border-radius: 10px; }
+  .outcome-badge.correct { background: rgba(76,154,106,0.15); color: var(--green); }
+  .outcome-badge.wrong { background: rgba(193,68,59,0.15); color: var(--red); }
+  .outcome-badge.pending { background: rgba(201,162,75,0.15); color: var(--gold); }
+  .decision-title { font-size: 14.5px; font-weight: 500; margin: 4px 0 8px; }
+  .conf-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .conf-label { font-size: 11px; color: var(--muted); width: 90px; flex-shrink: 0; }
+  .conf-bar-bg { flex: 1; height: 6px; background: var(--panel2); border-radius: 3px; overflow: hidden; }
+  .conf-bar-fill { height: 100%; background: var(--gold); }
+  .sources { font-size: 11.5px; color: var(--muted); margin-top: 6px; }
+  .approve-btn {
+    background: var(--gold); color: #121815; border: none; border-radius: 6px;
+    padding: 9px 16px; font-size: 13px; font-weight: 600; margin-top: 10px; width: 100%;
+  }
+
+  .checklist { list-style: none; padding: 0; }
+  .checklist li {
+    display: flex; align-items: center; gap: 10px; padding: 10px 0;
+    border-bottom: 1px solid var(--border); font-size: 14px;
+  }
+  .checklist input[type=checkbox] { width: 18px; height: 18px; accent-color: var(--gold); }
+
+  /* Squad diff mockup */
+  .squad-section-label {
+    font-size: 11px; color: var(--gold); font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.4px; margin: 14px 0 6px; border-bottom: 1px solid var(--border); padding-bottom: 4px;
+  }
+  .prow-diff {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 8px 10px; margin-bottom: 4px; background: var(--panel2); border-radius: 3px;
+  }
+  .prow-diff.out { border-left: 3px solid var(--red); opacity: 0.55; }
+  .prow-diff.in { border-left: 3px solid var(--green); }
+  .prow-diff.unchanged { border-left: 3px solid var(--border); }
+  .prow-name { font-size: 13.5px; }
+  .prow-name.out-text { text-decoration: line-through; color: var(--muted); }
+  .prow-name.in-text { color: var(--green); font-weight: 500; }
+  .diff-tag {
+    font-family: 'IBM Plex Mono', monospace; font-size: 9.5px; font-weight: 700;
+    padding: 1px 6px; border-radius: 3px; margin-left: 6px;
+  }
+  .diff-tag.out-tag { background: rgba(193,68,59,0.2); color: var(--red); }
+  .diff-tag.in-tag { background: rgba(76,154,106,0.2); color: var(--green); }
+  .cv-tag {
+    font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 700;
+    padding: 1px 6px; border-radius: 3px; margin-left: 6px;
+  }
+  .cv-tag.c { background: var(--gold); color: #121815; }
+  .cv-tag.v { background: #3a4640; color: var(--text); }
+  .bench-num {
+    font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--muted);
+    width: 18px; display: inline-block;
+  }
+  .chip-banner {
+    background: rgba(201,162,75,0.12); border: 1px solid var(--gold); border-radius: 6px;
+    padding: 8px 14px; font-size: 13px; color: var(--gold); margin-bottom: 14px; text-align: center;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <h1>FPL Agent — Full Spec &amp; UI Mockup</h1>
+    <p>For review before any implementation begins. Nothing here is built yet.</p>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <div class="status-banner">
+    <strong>How to use this document:</strong> read through, then use the sign-off checklist
+    at the bottom to tell me which modules to proceed with as-is, which need changes, and
+    which to defer. Nothing gets built until you say go.
+  </div>
+
+  <h2>Workflow</h2>
+  <h3>The agentic loop, end to end</h3>
+  <p class="lead">This replaces today's single Claude call with a closed loop: research is
+  iterative, the draft checks itself against hard constraints before you ever see it, and
+  the outcome feeds back in so next week's version of this loop is informed by whether last
+  week's call was actually right.</p>
+
+  <div class="flow">
+    <div class="flow-node"><div class="label">1 · Gather</div><div class="sub">live stats + last week's logged outcome</div></div>
+    <div class="flow-arrow">↓</div>
+    <div class="flow-node"><div class="label">2 · Research</div><div class="sub">iterative search, cites sources, follows up on gaps</div></div>
+    <div class="flow-arrow">↓</div>
+    <div class="flow-node"><div class="label">3 · Draft</div><div class="sub">recommendation, in structured form</div></div>
+    <div class="flow-arrow">↓</div>
+    <div class="flow-node critique"><div class="label">4 · Self-critique</div><div class="sub">checks budget, free transfers, chips used</div></div>
+    <div class="flow-loop">fails → back to Draft</div>
+    <div class="flow-arrow">↓ passes</div>
+    <div class="flow-node act"><div class="label">5 · Present + confidence</div><div class="sub">optional: execute via your logged-in session</div></div>
+    <div class="flow-arrow">↓</div>
+    <div class="flow-node memory"><div class="label">6 · Store outcome</div><div class="sub">resolved the following week, once results are in</div></div>
+    <div class="flow-feedback">↑ feeds back into next week's Gather step</div>
+  </div>
+
+  <h2>Module specs</h2>
+  <h3>Seven components, each independently gated</h3>
+
+  <div class="module-card">
+    <div class="module-header">
+      <span class="module-id">M1 · Memory store</span>
+      <span class="pill designed">Designed</span>
+    </div>
+    <p class="lead" style="margin-bottom:8px;">JSON file in your GitHub repo, read/written via
+    GitHub's Contents API. One record per gameweek: the recommendation made, and the outcome
+    filled in a week later once results are known.</p>
+    <table class="spec">
+      <tr><th>Interface</th><td><code>get_recent(n)</code>, <code>append_decision(record)</code>, <code>resolve_outcome(gw, outcome)</code></td></tr>
+      <tr><th>New secrets</th><td><code>GITHUB_TOKEN</code>, <code>GITHUB_REPO</code></td></tr>
+      <tr><th>Depends on</th><td>Nothing — foundational</td></tr>
+    </table>
+  </div>
+
+  <div class="module-card">
+    <div class="module-header">
+      <span class="module-id">M2 · Structured output schema</span>
+      <span class="pill proposed">Proposed</span>
+    </div>
+    <p class="lead" style="margin-bottom:8px;">Right now Claude returns free-text prose. Every
+    downstream module (confidence bars, the decision log, action-taking) needs a machine-readable
+    shape instead — the same content, structured.</p>
+    <table class="spec">
+      <tr><th>Shape</th><td><code>{transfer, chip, captain, confidence: {transfer, chip, captain}, sources: [...], rationale: str}</code></td></tr>
+      <tr><th>Mechanism</th><td>Claude's tool-use / forced JSON output, not prompt-and-hope parsing</td></tr>
+      <tr><th>Carries forward</th><td><code>rival_mode</code> (season-long vs head-to-head) and the trend-based aggression lean (favor differential/aggressive picks when the gap to your chosen rival is widening) — both already live today, explicitly preserved as required inputs to this schema, not dropped in the rebuild.</td></tr>
+      <tr><th>Depends on</th><td>M1 (the schema needs to match what memory stores)</td></tr>
+    </table>
+  </div>
+
+  <div class="module-card">
+    <div class="module-header">
+      <span class="module-id">M3 · Iterative research</span>
+      <span class="pill proposed">Proposed</span>
+    </div>
+    <p class="lead" style="margin-bottom:8px;">Multiple search rounds instead of one: if the
+    first search on an injury is ambiguous, the model searches again rather than guessing.</p>
+    <table class="spec">
+      <tr><th>Mechanism</th><td>Claude API's native multi-turn tool loop (several round trips server-side before you see output)</td></tr>
+      <tr><th>Cost impact</th><td>Higher than today's single call — 2-4x more tokens typically</td></tr>
+      <tr><th>Depends on</th><td>M2</td></tr>
+    </table>
+  </div>
+
+  <div class="module-card">
+    <div class="module-header">
+      <span class="module-id">M4 · Self-critique</span>
+      <span class="pill proposed">Proposed</span>
+    </div>
+    <p class="lead" style="margin-bottom:8px;">A second pass that checks the draft against hard
+    rules (free transfer count, chips already used, bank) before you see it — catching the exact
+    "use both" bug we hit earlier, automatically, every time.</p>
+    <table class="spec">
+      <tr><th>Mechanism</th><td>Deterministic Python validation of the structured output, not another LLM call</td></tr>
+      <tr><th>On failure</th><td>Re-prompts Claude once with the specific violation named, then surfaces to you if still wrong</td></tr>
+      <tr><th>Depends on</th><td>M2, M3</td></tr>
+    </table>
+  </div>
+
+  <div class="module-card">
+    <div class="module-header">
+      <span class="module-id">M5 · Confidence signaling</span>
+      <span class="pill proposed">Proposed</span>
+    </div>
+    <p class="lead" style="margin-bottom:8px;">Each of the three calls (transfer, chip, captain)
+    gets its own confidence level, shown as a bar rather than buried in prose tone.</p>
+    <table class="spec">
+      <tr><th>Depends on</th><td>M2 (needs the structured field to exist)</td></tr>
+    </table>
+  </div>
+
+  <div class="module-card">
+    <div class="module-header">
+      <span class="module-id">M6 · Decision log UI</span>
+      <span class="pill proposed">Proposed</span>
+    </div>
+    <p class="lead" style="margin-bottom:8px;">Replaces the current "button → wall of text" page
+    with the scrollable card feed mocked up below, PLUS a current-vs-proposed squad diff so a
+    transfer, captaincy change, or chip call is visible at a glance rather than read out in prose.</p>
+    <table class="spec">
+      <tr><th>Depends on</th><td>M1, M2, M5, plus reuses <code>app.py</code>'s existing team-sheet row rendering rather than duplicating it</td></tr>
+    </table>
+  </div>
+
+  <div class="module-card">
+    <div class="module-header">
+      <span class="module-id">M7 · Action-taking</span>
+      <span class="pill gated">Gated — separate sign-off required</span>
+    </div>
+    <p class="lead" style="margin-bottom:8px;">Actually executes the transfer via your
+    authenticated FPL session, on your explicit tap — not automatic, not silent. This is the
+    only module that takes an irreversible real-world action, so it gets its own dedicated
+    review after M1–M6 have a track record, not bundled in now.</p>
+    <table class="spec">
+      <tr><th>Depends on</th><td>Everything else, plus a proven track record from the memory store</td></tr>
+    </table>
+  </div>
+
+  <h2>UI mockup</h2>
+  <h3>The decision log, as it would actually look</h3>
+  <p class="lead">Dark/gold theme matching the app's existing style. This replaces Agent Briefing's
+  current single-block output.</p>
+
+  <div class="mockup-frame">
+
+    <div class="decision-card current">
+      <div class="decision-top">
+        <span class="gw-tag">GW3 · this week</span>
+        <span class="outcome-badge pending">Pending</span>
+      </div>
+      <div class="decision-title">Bring in Gvardiol for Kayode — closes the gap without a hit</div>
+      <div class="conf-row"><span class="conf-label">Transfer</span><div class="conf-bar-bg"><div class="conf-bar-fill" style="width:82%"></div></div></div>
+      <div class="conf-row"><span class="conf-label">Captain: Saka</span><div class="conf-bar-bg"><div class="conf-bar-fill" style="width:64%"></div></div></div>
+      <div class="sources">Sources: BBC Sport team news · Sky Sports press conference (2 checked)</div>
+      <button class="approve-btn">Approve &amp; execute transfer</button>
+    </div>
+
+    <div class="decision-card">
+      <div class="decision-top">
+        <span class="gw-tag">GW2</span>
+        <span class="outcome-badge correct">Correct — +6 pts vs. bench option</span>
+      </div>
+      <div class="decision-title">Held all chips — no fixture cleared the bar</div>
+      <div class="sources">Resolved after GW2 results confirmed</div>
+    </div>
+
+    <div class="decision-card">
+      <div class="decision-top">
+        <span class="gw-tag">GW1</span>
+        <span class="outcome-badge wrong">Missed — Bruno's 23pt haul was your bench VC</span>
+      </div>
+      <div class="decision-title">Captained Saka over B.Fernandes</div>
+      <div class="sources">Logged retroactively as a calibration data point</div>
+    </div>
+
+  </div>
+
+  <h2>UI mockup</h2>
+  <h3>Current vs proposed squad, at a glance</h3>
+  <p class="lead">This is the part that was missing from the decision log alone — a direct visual
+  diff instead of having to read a paragraph to figure out what actually changed. Struck-through
+  red = leaving, green = coming in, gold = captain, gray = vice, and a chip banner appears only
+  when one's actually being recommended this week.</p>
+
+  <div class="mockup-frame">
+
+    <div class="chip-banner">Triple Captain recommended this week</div>
+
+    <div class="squad-section-label">Defence</div>
+    <div class="prow-diff unchanged"><span class="prow-name">Shaw <span style="color:var(--muted);font-size:11px;">MUN</span></span></div>
+    <div class="prow-diff unchanged"><span class="prow-name">Gabriel <span style="color:var(--muted);font-size:11px;">ARS</span></span></div>
+    <div class="prow-diff out"><span class="prow-name out-text">Kayode <span style="color:var(--muted);font-size:11px;">BRE</span></span><span class="diff-tag out-tag">OUT</span></div>
+    <div class="prow-diff in"><span class="prow-name in-text">Gvardiol <span style="color:var(--muted);font-size:11px;">MCI</span></span><span class="diff-tag in-tag">IN</span></div>
+
+    <div class="squad-section-label">Midfield</div>
+    <div class="prow-diff unchanged"><span class="prow-name">Cunha <span style="color:var(--muted);font-size:11px;">MUN</span></span></div>
+    <div class="prow-diff unchanged"><span class="prow-name">B.Fernandes <span style="color:var(--muted);font-size:11px;">MUN</span></span><span class="cv-tag v">V</span></div>
+    <div class="prow-diff unchanged"><span class="prow-name">Saka <span style="color:var(--muted);font-size:11px;">ARS</span></span><span class="cv-tag c">C ×3</span></div>
+    <div class="prow-diff unchanged"><span class="prow-name">Semenyo <span style="color:var(--muted);font-size:11px;">MCI</span></span></div>
+
+    <div class="squad-section-label">Attack</div>
+    <div class="prow-diff unchanged"><span class="prow-name">João Pedro <span style="color:var(--muted);font-size:11px;">CHE</span></span></div>
+    <div class="prow-diff unchanged"><span class="prow-name">Thiago <span style="color:var(--muted);font-size:11px;">BRE</span></span></div>
+
+    <div class="squad-section-label">Bench (in order)</div>
+    <div class="prow-diff unchanged"><span class="bench-num">12</span><span class="prow-name">Dubravka</span></div>
+    <div class="prow-diff unchanged"><span class="bench-num">13</span><span class="prow-name">Hughes</span></div>
+    <div class="prow-diff unchanged"><span class="bench-num">14</span><span class="prow-name">Spence</span></div>
+    <div class="prow-diff unchanged"><span class="bench-num">15</span><span class="prow-name">Kusi-Asare</span></div>
+
+  </div>
+
+  <h2>Sign-off</h2>
+  <h3>Tell me how to proceed</h3>
+  <ul class="checklist">
+    <li><input type="checkbox"> M1 — build as designed (GitHub JSON memory)</li>
+    <li><input type="checkbox"> M2 — build structured output schema</li>
+    <li><input type="checkbox"> M3 — build iterative research (accept the cost increase)</li>
+    <li><input type="checkbox"> M4 — build self-critique</li>
+    <li><input type="checkbox"> M5 — build confidence signaling</li>
+    <li><input type="checkbox"> M6 — build decision log UI</li>
+    <li><input type="checkbox"> M7 — defer for now, revisit after a season's track record</li>
+  </ul>
+
+</div>
+</body>
+</html>
