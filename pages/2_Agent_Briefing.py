@@ -13,7 +13,7 @@ import streamlit as st
 from fpl_data import (
     get_bootstrap, get_fixtures, get_entry_history, get_picks,
     get_current_event, get_next_deadline, estimate_free_transfers,
-    build_player_lookup, get_chips_used, build_team_strength,
+    build_player_lookup, get_chips_used, build_team_strength, minutes_probability,
 )
 from ui_components import THEME_CSS, render_squad_diff
 from strategy import suggest_transfers, suggest_chip, suggest_captain, PROFILES
@@ -23,6 +23,7 @@ from settings import settings_sidebar, get_settings
 import memory
 from memory import MemoryError
 from fpl_auth import submit_transfers, FPLLoginError
+from optimizer import optimize_transfers, OptimizerError
 
 st.set_page_config(page_title="FPL Decision Log", page_icon="\U0001f4dd", layout="wide")
 st.markdown(THEME_CSS, unsafe_allow_html=True)
@@ -179,6 +180,30 @@ if st.session_state[cache_key] is None:
 
             captain_options = suggest_captain(squad_players, fixtures, next_event, team_strength=team_strength)
 
+            # Fifth input: the mathematically-exact optimizer, for the free-transfer
+            # count as a natural default target. Only available when logged in --
+            # degrades to an explicit "unavailable" note otherwise, never fabricated.
+            optimizer_summary = {"available": False, "reason": "Not logged in -- optimizer requires accurate selling price."}
+            if cfg["is_logged_in"] and cfg["live_picks"] and free_transfers and free_transfers > 0:
+                try:
+                    all_candidates = [p for p in players.values() if minutes_probability(p) > 0]
+                    opt_result = optimize_transfers(
+                        squad_picks=cfg["live_picks"], players=players, fixtures=fixtures,
+                        from_event=next_event, team_strength=team_strength,
+                        target_transfers=free_transfers, bank=bank, free_transfers=free_transfers,
+                        all_candidate_players=all_candidates,
+                    )
+                    optimizer_summary = {
+                        "available": True,
+                        "target_transfers": free_transfers,
+                        "buy": [players[pid]["name"] for pid in opt_result["buy_ids"]],
+                        "sell": [players[pid]["name"] for pid in opt_result["sell_ids"]],
+                        "ratio_points_per_value": round(opt_result["ratio"], 3),
+                        "new_bank": opt_result["new_bank"],
+                    }
+                except OptimizerError as e:
+                    optimizer_summary = {"available": False, "reason": str(e)}
+
             context = {
                 "gameweek": next_event,
                 "my_total": my_history["current"][-1]["total_points"],
@@ -194,6 +219,7 @@ if st.session_state[cache_key] is None:
                 "transfer_suggestions": {p: suggestions_by_profile[p][:2] for p in PROFILES},
                 "chip_suggestions": chips_by_profile,
                 "captain_options": [{"name": p["name"], "projected_ev": ev} for p, ev in captain_options],
+                "optimizer_suggestion": optimizer_summary,
                 "squad_status_flags": [
                     {"name": pl["name"], "status": pl["status"], "news": pl["news"]}
                     for pl in squad_players if pl["status"] != "a"
@@ -251,6 +277,9 @@ if state:
             unsafe_allow_html=True,
         )
         st.caption(f"**{item.get('action', '')}** -- {item.get('rationale', '')}")
+
+    if rec.get("sources_reconciled"):
+        st.info(f"**How the five inputs reconciled:** {rec['sources_reconciled']}")
 
     if rec.get("watch_outs"):
         st.markdown("**Watch-outs**")
