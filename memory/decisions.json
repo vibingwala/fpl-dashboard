@@ -1,42 +1,41 @@
 [
   {
     "gameweek": 4,
-    "logged_at": "2026-09-06T15:10:26.754377+00:00",
+    "logged_at": "2026-09-06T15:23:25.198059+00:00",
     "recommendation": {
-      "bottom_line": "Use the free transfer on Martinez \u2192 Tzolakis (highest net gain across all profiles, no hit), and captain De Cuyper in Brighton's favourable home fixture vs Leeds where he's playing as an OOP winger with Minteh absent.",
+      "bottom_line": "Use the free transfer to upgrade Semenyo to Gakpo for attacking upside; hold Martinez who is Chelsea's No.1 facing Hull at home in GW4; captain De Cuyper in a favourable away trip to Coventry.",
       "transfer": {
-        "action": "Martinez \u2192 Tzolakis",
-        "rationale": "Martinez has permanently left Aston Villa for Chelsea \u2014 his FPL asset is defunct at Villa. Tzolakis is confirmed Hull City's #1 (manager explicitly stated 'he's our first choice'), kept a clean sheet + made key saves in GW1 vs Man Utd, and is priced at \u00a34.5m. Net gain of +4.17 projected points with zero hit cost. This is the single highest-value transfer across all strategy profiles. GW4 Hull host Aston Villa (drew 0-0 in GW3, Hull showing defensive resilience as a promoted side). GW5 Chelsea away is the next risk checkpoint.",
-        "confidence": 0.88
+        "action": "Semenyo \u2192 Gakpo",
+        "rationale": "Martinez has moved to Chelsea and is their starting GK (rated 8.8/10 in GW2) facing promoted Hull City at home in GW4 \u2014 a prime clean-sheet opportunity. Selling him for Tzolakis is counterproductive: Tzolakis goes AWAY to Chelsea in GW4, his hardest possible fixture, negating the 4.17 projected gain entirely for this week. Instead, use the free transfer on Semenyo \u2192 Gakpo: Liverpool's attacking output gives Gakpo multiple routes to points (goals, assists, clean sheet bonus) and net gain of 1.83 with \u00a33.1m in bank preserved for future flexibility. No hit taken.",
+        "confidence": 0.72
       },
       "chip": {
         "action": "Hold all chips",
-        "rationale": "No chip clears the threshold this week across any profile. The 139-point deficit to the rival is a season-long problem requiring structural squad improvement, not a chip burn in GW4. All four chips (Wildcard, Free Hit, Triple Captain, Bench Boost) should be preserved for higher-leverage moments \u2014 a Wildcard timed around a blank/double gameweek will recover far more ground than deploying one now.",
-        "confidence": 0.92
+        "rationale": "No chip clears the threshold across any profile this week. The 139-point deficit to the rival is a season-long chase \u2014 deploying chips in GW4 with no double gameweek or exceptional fixture cluster would be premature and wasteful.",
+        "confidence": 0.9
       },
       "captain": {
         "action": "De Cuyper",
-        "rationale": "Highest projected EV (1.14) among the three options. Brighton host Leeds in GW4 \u2014 a favourable home fixture. De Cuyper is operating as an out-of-position winger (listed as DEF, priced at \u00a34.5m) with Minteh confirmed out for 2-3 months, giving him routes to goals, assists, and clean-sheet points simultaneously. He scored in the Conference League playoff win over Troms\u00f8 confirming the advanced role is not a one-match anomaly. Caveat: Brighton have Conference League rotation risk on Thursday-Sunday sequences \u2014 confirm the GW4 lineup before deadline. Jo\u00e3o Pedro faces Arsenal away (very tough); B. Fernandes at Everton away offers less upside than De Cuyper at home.",
-        "confidence": 0.72
+        "rationale": "Highest projected EV (1.14) among options. In GW1 he scored and forced an own goal away to Aston Villa, recording four shots and three chances created in a 4-0 win. In GW4 Brighton travel to newly promoted Coventry \u2014 a soft fixture. He is deployed out-of-position as a left winger (defender FPL price), giving clean-sheet points plus massive attacking upside. Joao Pedro (1.09 EV) is a credible alternative \u2014 Chelsea host Hull at home \u2014 but De Cuyper's price-to-EV ratio and confirmed advanced role make him the pick.",
+        "confidence": 0.68
       },
       "watch_outs": [
-        "De Cuyper rotation risk: Brighton qualified for the Conference League league phase (6+ matches). If Brighton play Thursday before GW4, De Cuyper may be rested \u2014 check confirmed lineup before deadline.",
-        "Tzolakis GW5 exposure: Hull travel to Chelsea away in GW5 \u2014 difficult fixture for a clean sheet, monitor whether a short-term hold or early sale is warranted.",
-        "Martinez (Chelsea): Now Chelsea's #1, so if you held him expecting Villa points, that value is gone \u2014 the transfer out is urgent regardless of other considerations.",
-        "Jo\u00e3o Pedro: Per fixture data, Chelsea face Arsenal in GW4 \u2014 a very hard away fixture, depressing his captaincy ceiling despite a 1.09 projected EV."
+        "De Cuyper rotation risk: Brighton signed left-back Hadjam and have Conference League fixtures creating Thursday-Sunday sequences; if Kadioglu returns fit, De Cuyper could drop back to LB with reduced attacking output or be rested entirely.",
+        "Martinez (Chelsea) finger injury carried from Europa League final \u2014 no surgery required and 20-day recovery timeline noted, but monitor pre-GW4 team news for any late fitness concerns.",
+        "Jo\u00e3o Pedro minutes risk: Welbeck signed by Chelsea adds squad depth competition, though Pedro remains clear No.1 striker under Xabi Alonso.",
+        "Hull City (Tzolakis) face Chelsea away in GW4 \u2014 worst possible fixture for a newly promoted goalkeeper; any consideration of the Martinez \u2192 Tzolakis move should be deferred until GW5+ when Hull's schedule eases."
       ],
       "sources": [
-        "Fantasy Football Scout \u2013 GW4 tips and Tzolakis/Butland starting role article (Aug 6, 2026)",
-        "OneFPL \u2013 Best FPL Goalkeepers 2026-27: Tzolakis Rises After GW1",
-        "ESPN \u2013 Chelsea sign Emiliano Mart\u00ednez from Aston Villa (Aug 30, 2026)",
-        "NBC Sports \u2013 2026-27 Premier League schedule (GW3 & GW4 fixtures confirmed)",
-        "Fantasy Football Fix \u2013 De Cuyper FPL analysis, fixtures GW2-7",
-        "OneFPL \u2013 Brighton FPL: De Cuyper & Europe Rotation article",
-        "Wikipedia \u2013 2026-27 Premier League season stats and results",
-        "Fantasy Football Scout \u2013 FPL pre-season: De Cuyper OOP, Minteh news",
-        "Hull City 2026-27 Wikipedia season page"
+        "Fox Sports / Wikipedia: Martinez completed permanent transfer to Chelsea, signed 3-year deal, rated 8.8/10 on debut vs Brighton (GW2)",
+        "Chelsea FC official site + NBC Sports schedule: Chelsea host Hull City at home on 12 September (GW4)",
+        "Fantasy Football Scout GW1 notes: De Cuyper scored + forced OG vs Aston Villa, 4 shots, 3 chances created in 4-0 win as left winger OOP",
+        "OneFPL Brighton guide: De Cuyper rotation risk flagged after Conference League qualification and Hadjam signing",
+        "Live Football on TV / Brotherhood of Pursuits: Brighton face Coventry away in GW4 (Sunday 13 September)",
+        "Fantasy Football Scout Tzolakis analysis: Hull City priced \u00a34.6m, 26 FPL points, but GW4 = away to Chelsea",
+        "ChaseyourSport Joao Pedro analysis: 15 goals + 4 assists last season, confirmed Chelsea No.1 striker under Alonso",
+        "FPL Scope guide: Joao Pedro in GW4 Wildcard squad vs Hull at home confirmed"
       ],
-      "_raw_text": "Excellent \u2014 I now have everything I need. Key findings:\n\n- **Martinez** has left Aston Villa and signed for Chelsea, making him a new Chelsea GK. His FPL card (still listed as \"Martinez\") is effectively dead/redundant \u2014 he's no longer Villa's keeper and his availability/value as an FPL asset in your squad is shot.\n- **Tzolakis** is confirmed Hull City's #1, kept a clean sheet in GW1 vs Man Utd. GW4 Hull fixture is **vs Aston Villa (H)** \u2014 a 0-0 draw per the GW3 results, meaning Hull are defensively solid. GW5 is Chelsea away (tough).\n- **Brighton GW4** fixture is **Leeds (H)** \u2014 a favourable home game. De Cuyper is playing as an out-of-position winger with Minteh out 2-3 months, giving him dual routes to points. However, Brighton have Conference League rotation risk.\n- The **captain choice**: De Cuyper has highest projected EV (1.14) but Brighton are flagged as a rotation risk with Conference League. GW4 opponent Leeds at home is favourable but De Cuyper is not a premium attacker. B. Fernandes is at Man Utd vs Everton (away, GW4) \u2014 tough. Jo\u00e3o Pedro is Chelsea vs Arsenal (GW4 = Arsenal vs Chelsea per the fixture data) \u2014 Arsenal away is very hard."
+      "_raw_text": "I now have sufficient information to make a decisive recommendation. Key findings:\n\n- \nEmi Martinez completed a permanent move to Chelsea from Aston Villa\n, so the \"Martinez\" in the squad is now a Chelsea goalkeeper (confirmed by \nhis Chelsea debut with four saves, and he appears set to operate as Chelsea's No. 1\n).\n- \nMartinez scored 8.8/10 in Chelsea's GW2 4-3 win over Brighton\n, showing strong early form.\n- \nChelsea face Hull City at home on Saturday 12 September (GW4)\n \u2014 an excellent clean sheet opportunity.\n- \nTzolakis is a Hull City goalkeeper priced at \u00a34.6m with 26 points this season\n. \nHe kept a clean sheet against Man Utd and Hull beat Manchester United 2-0\n. His GW4 fixture is away at Chelsea \u2014 a very tough assignment.\n- \nDe Cuyper delivered big in GW1 \u2014 deployed out-of-position on the left wing, he forced an own goal and scored, recording four shots and three chances created\n.\n- \nBrighton face Coventry away in GW4\n \u2014 a very winnable fixture for De Cuyper.\n- \nDe Cuyper's upside has strengthened at exactly the same time his rotation risk has increased\n due to Brighton's Conference League commitments and new signing Hadjam.\n- \nJo\u00e3o Pedro was expected to be Free Hitted away in GW3 against Arsenal before staying in the GW4 squad against Hull at home\n \u2014 Chelsea host Hull in GW4, meaning Jo\u00e3o Pedro faces Hull at Stamford Bridge, a great fixture.\n- \nJo\u00e3o Pedro finished last season with 15 goals and 4 assists\n.\n- The Martinez \u2192 Tzolakis transfer has the highest projected net gain (4.17) across all profiles, but Tzolakis in GW4 goes AWAY to Chelsea \u2014 his toughest possible fixture. That dramatically undermines the transfer's GW4 value specifically.\n- The right call is to keep Martinez (Chelsea's starting GK, home to Hull in GW4) and instead look at the Semenyo \u2192 Gakpo swap for the free transfer, given Gakpo's Liverpool attacking threat. But wait \u2014 let me check if Gakpo/Joao Pedro fixture context makes more sense for captain too.\n\nGiven Joao Pedro has the second-highest projected EV (1.09) and Chelsea host Hull at home in GW4, while De Cuyper (highest EV at 1.14) faces Coventry away \u2014 De Cuyper is the captain pick. The transfer should be Martinez \u2192 Tzolakis only if Tzolakis had a good GW4 fixture, but he faces Chelsea AWAY. Hold Martinez (Chelsea No.1, home to Hull) and use the free transfer on Semenyo \u2192 Gakpo for attacking upside."
     },
     "outcome": {
       "resolved": false,
