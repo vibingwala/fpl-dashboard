@@ -181,14 +181,15 @@ if st.session_state[cache_key] is None:
             captain_options = suggest_captain(squad_players, fixtures, next_event, team_strength=team_strength)
 
             # Fifth input: the mathematically-exact optimizer, for the free-transfer
-            # count as a natural default target. Only available when logged in --
-            # degrades to an explicit "unavailable" note otherwise, never fabricated.
-            optimizer_summary = {"available": False, "reason": "Not logged in -- optimizer requires accurate selling price."}
-            if cfg["is_logged_in"] and cfg["live_picks"] and free_transfers and free_transfers > 0:
+            # count as a natural default target. Login isn't currently viable (see
+            # fpl_auth.py), so selling price is approximated as current price --
+            # flagged in the summary rather than hidden.
+            optimizer_summary = {"available": False, "reason": "No free transfers available to target."}
+            if free_transfers and free_transfers > 0:
                 try:
                     all_candidates = [p for p in players.values() if minutes_probability(p) > 0]
                     opt_result = optimize_transfers(
-                        squad_picks=cfg["live_picks"], players=players, fixtures=fixtures,
+                        squad_picks=my_picks["picks"], players=players, fixtures=fixtures,
                         from_event=next_event, team_strength=team_strength,
                         target_transfers=free_transfers, bank=bank, free_transfers=free_transfers,
                         all_candidate_players=all_candidates,
@@ -200,6 +201,7 @@ if st.session_state[cache_key] is None:
                         "sell": [players[pid]["name"] for pid in opt_result["sell_ids"]],
                         "ratio_points_per_value": round(opt_result["ratio"], 3),
                         "new_bank": opt_result["new_bank"],
+                        "note": "Selling price approximated as current price -- login isn't currently available.",
                     }
                 except OptimizerError as e:
                     optimizer_summary = {"available": False, "reason": str(e)}

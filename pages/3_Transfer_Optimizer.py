@@ -1,14 +1,15 @@
 """
 Transfer Optimizer -- maximizes aggregate points-per-value of incoming
 players for a target number of transfers, with excess-transfer hit cost
-folded in as a market-rate value inflation. Requires login (accurate
-selling price is required for correct budget math).
+folded in as a market-rate value inflation. Login is not currently viable
+(see fpl_auth.py) -- selling price is approximated as current price, which
+is imperfect but the best available without it.
 """
 
 import streamlit as st
 
 from fpl_data import (
-    get_bootstrap, get_fixtures, get_current_event, build_player_lookup,
+    get_bootstrap, get_fixtures, get_current_event, get_picks, build_player_lookup,
     build_team_strength, minutes_probability,
 )
 from ui_components import THEME_CSS, render_squad_diff
@@ -23,14 +24,13 @@ st.caption("Maximizes total points \u00f7 total value of incoming players for a 
 settings_sidebar()
 cfg = get_settings()
 
-if not cfg["is_logged_in"]:
-    st.error(
-        "This requires login. Accurate budget math needs each outgoing player's real "
-        "selling price (differs from current price once a player has risen in value), "
-        "which only the authenticated my-team data provides. Add FPL_EMAIL and "
-        "FPL_PASSWORD to Secrets to use this page."
-    )
-    st.stop()
+st.warning(
+    "Selling prices are approximated as current price (login isn't currently "
+    "available -- see sidebar). This is WRONG whenever a player has risen in "
+    "value since you bought them, since FPL's 50% profit-sell rule means you'd "
+    "actually get less back than their current price. Budget results here may "
+    "be slightly optimistic as a result."
+)
 
 if not cfg["team_id"].strip().isdigit():
     st.warning("Enter a numeric team ID in the sidebar.")
@@ -50,11 +50,21 @@ next_event = current_event + 1
 players = build_player_lookup(bootstrap)
 team_strength = build_team_strength(bootstrap)
 
+try:
+    my_picks_data = get_picks(entry_id, current_event)
+except Exception as e:
+    st.error(f"Couldn't reach the FPL API: {e}")
+    st.stop()
+
+squad_picks = my_picks_data["picks"]  # full 15-man squad, not just the starting XI
+bank = my_picks_data["entry_history"]["bank"] / 10
+free_transfers = cfg["ft_override"] if cfg["ft_override"] is not None else 1
+
 target_transfers = st.number_input("Target number of transfers", min_value=1, max_value=5, value=1)
 
-hit_pts_preview = 4 * max(0, target_transfers - cfg["free_transfers"])
+hit_pts_preview = 4 * max(0, target_transfers - free_transfers)
 st.caption(
-    f"Free transfers: {cfg['free_transfers']} \u00b7 Bank: \u00a3{cfg['bank']:.1f}m \u00b7 "
+    f"Free transfers: {free_transfers} \u00b7 Bank: \u00a3{bank:.1f}m \u00b7 "
     + (f"{hit_pts_preview} pt hit equivalent will be folded into the ratio" if hit_pts_preview else "No hit cost")
 )
 
@@ -65,14 +75,14 @@ if st.button("Find optimal transfers"):
                 p for p in players.values() if minutes_probability(p) > 0
             ]
             result = optimize_transfers(
-                squad_picks=cfg["live_picks"],
+                squad_picks=squad_picks,
                 players=players,
                 fixtures=fixtures,
                 from_event=next_event,
                 team_strength=team_strength,
                 target_transfers=target_transfers,
-                bank=cfg["bank"],
-                free_transfers=cfg["free_transfers"],
+                bank=bank,
+                free_transfers=free_transfers,
                 all_candidate_players=candidate_players,
             )
             st.session_state["_optimizer_result"] = result
@@ -100,13 +110,13 @@ if result:
         st.write(f"Points forfeited by selling: {result['forfeited_points']:.2f}")
         st.write(f"Dinkelbach iterations to convergence: {result['dinkelbach_iterations']}")
         st.caption("Solved exactly via PuLP/CBC across the full candidate pool -- no shortlist bound.")
+        if result.get("approximated_selling_price"):
+            st.caption("\u26a0\ufe0f Selling prices were approximated as current price (see warning above).")
 
     st.subheader("Current vs proposed squad")
     current_picks_shape = [
-        {"element": pid, "multiplier": 1} for pid in
-        {p["element"] for p in cfg["live_picks"] if p.get("multiplier", 1) > 0}
+        {"element": p["element"], "multiplier": 1} for p in squad_picks
     ]
-    proposed_ids = ({p["element"] for p in cfg["live_picks"] if p.get("multiplier", 1) > 0}
-                     - set(result["sell_ids"])) | set(result["buy_ids"])
+    proposed_ids = ({p["element"] for p in squad_picks} - set(result["sell_ids"])) | set(result["buy_ids"])
     diff_html = render_squad_diff(current_picks_shape, proposed_ids, players)
     st.markdown(f'<div class="sheet">{diff_html}</div>', unsafe_allow_html=True)
