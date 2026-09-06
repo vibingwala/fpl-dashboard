@@ -1,13 +1,20 @@
 """
-FPL login, using the same (unofficial, community-reverse-engineered) flow the
-official mobile app itself uses. There is no official public login API --
-this POSTs credentials to FPL's real login endpoint and reuses the resulting
-session cookie. It can break if FPL changes their login flow without notice.
+FPL login -- STATUS: NOT CURRENTLY VIABLE, kept for historical reference.
 
-Once logged in, /api/my-team/{id}/ returns AUTHORITATIVE data your own public
-API calls cannot get: exact free transfers remaining, which chips are already
-used, and your live provisional squad for the upcoming (not yet locked)
-gameweek -- replacing the estimates used elsewhere in this app.
+This was built against users.premierleague.com, based on 2021-era community
+reverse-engineering. That endpoint is now CONFIRMED DEAD (DNS resolution
+fails even from a normal browser on a normal network -- not a Streamlit
+Cloud restriction, genuinely retired). FPL has since moved to a different,
+currently undocumented "myPremierLeague"-branded login system.
+
+This module is not called anywhere in the app currently (see settings.py).
+If a correct current endpoint is ever identified (e.g. by inspecting a real
+browser login's network traffic), this is where it would be rebuilt.
+
+Originally: logs in using the same (unofficial, community-reverse-engineered)
+flow the official mobile app itself used. There was never an official public
+login API -- this POSTed credentials to FPL's real login endpoint and reused
+the resulting session cookie.
 """
 
 import requests

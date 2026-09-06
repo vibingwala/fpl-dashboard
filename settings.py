@@ -7,22 +7,23 @@ query params (so bookmarking/home-screening the page -- with settings
 already applied -- survives closing and reopening the app, since Streamlit
 Cloud has no safe server-side file storage on a shared instance).
 
-If FPL_EMAIL and FPL_PASSWORD are set in Streamlit Secrets, this also handles
-FPL login once per session and exposes AUTHORITATIVE free transfers, bank,
-and chip usage (from the my-team endpoint) instead of estimates -- this is
-the real fix for "the free transfer count is wrong", not just an override box.
+FPL login was attempted here previously but has been REVERTED: the
+reverse-engineered endpoint it depended on (users.premierleague.com) no
+longer exists -- confirmed dead even from a normal browser, not a Streamlit
+Cloud network restriction. FPL has moved to a different, currently
+undocumented login system. Everything below runs on public-data estimates
+and the manual free-transfer override instead. See fpl_auth.py's docstring
+for the history if this is ever revisited with a correct current endpoint.
 
 Usage in any page:
     from settings import get_settings, settings_sidebar
     settings_sidebar()          # renders the shared inputs once
     cfg = get_settings()        # dict: team_id, rival_id, rival_mode, ft_override,
-                                 #       is_logged_in, free_transfers, bank,
-                                 #       chips_used, live_picks, auth_error
+                                 #       is_logged_in (always False), free_transfers,
+                                 #       bank, chips_used, live_picks (all None), auth_error
 """
 
 import streamlit as st
-
-from fpl_auth import login, get_my_team, extract_authoritative_state, FPLLoginError
 
 DEFAULTS = {
     "team_id": "3486295",
@@ -64,36 +65,6 @@ def _sync_query_params():
     st.query_params["ft_override_value"] = str(st.session_state["ft_override_value"])
 
 
-def _try_login_and_fetch(team_id_str):
-    """Logs in once per session (cached in session_state) and fetches
-    my-team data fresh each call (cheap, no caching needed -- it's the
-    whole point that this is live). Any failure here -- network, auth,
-    or otherwise -- must NEVER crash the app; login is a nice-to-have
-    enhancement, not something Squad View or Transfers should depend on."""
-    fpl_email = st.secrets.get("FPL_EMAIL")
-    fpl_password = st.secrets.get("FPL_PASSWORD")
-    if not (fpl_email and fpl_password):
-        return None, None
-
-    if "fpl_session" not in st.session_state:
-        try:
-            st.session_state["fpl_session"] = login(fpl_email, fpl_password)
-            st.session_state["fpl_auth_error"] = None
-        except Exception as e:
-            st.session_state["fpl_session"] = None
-            st.session_state["fpl_auth_error"] = str(e)
-
-    session = st.session_state.get("fpl_session")
-    if not session or not team_id_str.strip().isdigit():
-        return None, st.session_state.get("fpl_auth_error")
-
-    try:
-        my_team = get_my_team(session, int(team_id_str))
-        return extract_authoritative_state(my_team), None
-    except Exception as e:
-        return None, str(e)
-
-
 def settings_sidebar():
     """Renders the shared settings controls in the sidebar. Call this once
     at the top of every page, before reading get_settings()."""
@@ -115,33 +86,27 @@ def settings_sidebar():
 
         st.divider()
 
-        live, auth_error = _try_login_and_fetch(st.session_state["team_id"])
-        st.session_state["_live_fpl_state"] = live
-        st.session_state["_live_fpl_error"] = auth_error
+        # FPL login is not currently viable: the reverse-engineered endpoint
+        # this was built against (users.premierleague.com) no longer exists --
+        # FPL has moved to a different, undocumented login system since. Not
+        # attempting it any more here avoids a wasted, always-failing network
+        # call on every single page load. Everything runs on public-data
+        # estimates instead. See fpl_auth.py's docstring for the history if
+        # this is ever revisited with a correct current endpoint.
+        st.caption(
+            "Live FPL login isn't currently available (the endpoint this was built "
+            "against has been retired by FPL). Free transfers are estimated below -- "
+            "override if it looks wrong."
+        )
+        st.session_state["_live_fpl_state"] = None
+        st.session_state["_live_fpl_error"] = None
 
-        if live:
-            st.success(
-                f"Logged in -- live data: {live['free_transfers']} FT, "
-                f"£{live['bank']:.1f}m bank"
+        st.divider()
+        st.checkbox("Override estimated free transfers", key="ft_override_enabled")
+        if st.session_state["ft_override_enabled"]:
+            st.number_input(
+                "Free transfers available", min_value=0, max_value=5, key="ft_override_value"
             )
-        elif auth_error:
-            st.warning(f"FPL login not working: {auth_error}")
-            st.caption("Falling back to estimated free transfers below.")
-        else:
-            st.caption(
-                "Add FPL_EMAIL and FPL_PASSWORD to Secrets for exact free "
-                "transfers, bank, and chip usage instead of estimates."
-            )
-
-        if not live:
-            st.divider()
-            st.caption("Free transfers are estimated (the public API doesn't expose "
-                       "this) -- override if it's wrong.")
-            st.checkbox("Override estimated free transfers", key="ft_override_enabled")
-            if st.session_state["ft_override_enabled"]:
-                st.number_input(
-                    "Free transfers available", min_value=0, max_value=5, key="ft_override_value"
-                )
 
         st.divider()
         if st.button("Save as home screen link", use_container_width=True):

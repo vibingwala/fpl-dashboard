@@ -87,21 +87,21 @@ def _solve_milp(q, squad_entries, candidate_entries, T, bank, current_club_count
 def optimize_transfers(squad_picks, players, fixtures, from_event, team_strength,
                         target_transfers, bank, free_transfers, all_candidate_players, n=4):
     """
-    squad_picks: list of dicts from the my-team endpoint, each with
-        element, selling_price (REQUIRED).
+    squad_picks: list of dicts with at minimum 'element'. If 'selling_price'
+    is present (from authenticated my-team data), it's used directly -- the
+    accurate case. If absent, current price is used as an approximation,
+    with 'approximated_selling_price': True flagged in the result so callers
+    can warn the user. This approximation is WRONG whenever a player has
+    risen in value since being bought (FPL's 50% profit-sell rule), but
+    login (the accurate path) isn't currently viable -- see fpl_auth.py.
+
     Returns a dict describing the exact optimum, or raises OptimizerError.
     """
     T = target_transfers
     if T <= 0:
         raise OptimizerError("target_transfers must be at least 1.")
 
-    for pick in squad_picks:
-        if "selling_price" not in pick:
-            raise OptimizerError(
-                "Missing selling_price on squad data -- the optimizer requires login "
-                "(the public API doesn't expose real selling prices). Log in via "
-                "Secrets and try again."
-            )
+    approximated_selling_price = not all("selling_price" in p for p in squad_picks)
 
     squad_ids = {p["element"] for p in squad_picks}
 
@@ -109,9 +109,13 @@ def optimize_transfers(squad_picks, players, fixtures, from_event, team_strength
     current_club_counts = {}
     for pick in squad_picks:
         player = players[pick["element"]]
+        if "selling_price" in pick:
+            selling_price = pick["selling_price"] / 10
+        else:
+            selling_price = player["price"]  # approximation -- see docstring
         squad_entries.append({
             "id": player["id"], "position": player["position"], "team_id": player["team_id"],
-            "selling_price": pick["selling_price"] / 10,
+            "selling_price": selling_price,
             "points": expected_value(player, fixtures, from_event, n, team_strength),
         })
         current_club_counts[player["team_id"]] = current_club_counts.get(player["team_id"], 0) + 1
@@ -169,5 +173,6 @@ def optimize_transfers(squad_picks, players, fixtures, from_event, team_strength
         "hit_cost_points": 4 * max(0, T - free_transfers),
         "dinkelbach_iterations": iterations,
         "new_bank": round(bank + sell_value - result["incoming_value"], 1),
+        "approximated_selling_price": approximated_selling_price,
     })
     return result
