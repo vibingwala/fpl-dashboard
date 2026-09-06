@@ -9,21 +9,17 @@ import streamlit as st
 from fpl_data import (
     get_bootstrap, get_fixtures, get_entry_history, get_picks,
     get_current_event, estimate_free_transfers, build_player_lookup,
+    build_team_strength, get_chips_used,
 )
 from strategy import suggest_transfers, suggest_chip, PROFILES, PROFILE_DESCRIPTIONS
+from settings import settings_sidebar, get_settings
 
 st.set_page_config(page_title="FPL Strategy", page_icon="\u26bd", layout="wide")
 st.title("Transfer and chip strategy")
 
-with st.sidebar:
-    st.header("Settings")
-    entry_id = st.text_input("Your FPL team ID", value="3486295")
-    st.divider()
-    st.caption("Free transfers are estimated (public API doesn't expose this). "
-               "Correct it here if it doesn't match what the app shows you.")
-    ft_override = st.checkbox("Override estimated free transfers")
-    ft_manual = st.number_input("Free transfers available", min_value=0, max_value=5, value=1) \
-        if ft_override else None
+settings_sidebar()
+cfg = get_settings()
+entry_id = cfg["team_id"]
 
 if not entry_id.strip().isdigit():
     st.warning("Enter a numeric team ID in the sidebar.")
@@ -42,20 +38,30 @@ except Exception as e:
     st.stop()
 
 players = build_player_lookup(bootstrap)
-bank = picks_data["entry_history"]["bank"] / 10
-free_transfers = ft_manual if ft_manual is not None else estimate_free_transfers(history)
+team_strength = build_team_strength(bootstrap)
+bank = cfg["bank"] if cfg["is_logged_in"] else picks_data["entry_history"]["bank"] / 10
+if cfg["is_logged_in"]:
+    free_transfers = cfg["free_transfers"]
+    chips_used = cfg["chips_used"]
+else:
+    free_transfers = cfg["ft_override"] if cfg["ft_override"] is not None else estimate_free_transfers(history)
+    chips_used = get_chips_used(history)
 
 squad_players = [players[p["element"]] for p in picks_data["picks"] if p["multiplier"] > 0]
 bench_players = [players[p["element"]] for p in picks_data["picks"] if p["multiplier"] == 0]
 
 col1, col2, col3 = st.columns(3)
 col1.metric("Bank", f"\u00a3{bank:.1f}m")
-col2.metric("Free transfers (est.)", free_transfers)
+col2.metric("Free transfers", free_transfers)
 col3.metric("Gameweek", event_id)
 
-if ft_manual is None:
+if cfg["is_logged_in"]:
+    st.caption("Bank and free transfers are live, from your logged-in FPL account.")
+elif cfg["ft_override"] is None:
     st.caption("Free transfers shown above are estimated from your transfer history. "
                "Tick the override in the sidebar if this looks wrong.")
+else:
+    st.caption("Free transfers manually overridden in the sidebar.")
 
 st.divider()
 
@@ -70,7 +76,7 @@ for tab, profile in zip(tabs, PROFILES):
         st.subheader("Suggested transfers")
         suggestions = suggest_transfers(
             profile, squad_players, players, fixtures, event_id + 1,
-            bank, free_transfers,
+            bank, free_transfers, team_strength=team_strength,
         )
 
         if not suggestions:
@@ -90,7 +96,8 @@ for tab, profile in zip(tabs, PROFILES):
         st.subheader("Chip recommendation")
         chip, reason = suggest_chip(
             profile, squad_players, bench_players, fixtures, event_id,
-            ev_trend, is_blank_or_double_soon=False,
+            ev_trend, is_blank_or_double_soon=False, team_strength=team_strength,
+            chips_used=chips_used,
         )
         if chip:
             st.success(f"**{chip}** \u2014 {reason}")
