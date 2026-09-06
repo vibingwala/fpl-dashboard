@@ -41,15 +41,18 @@ RIVAL_MODES = [
 def _init_from_query_params():
     """On first load of a session, seed session_state from the URL if present,
     else from Secrets (the true "set once" layer), else hardcoded defaults.
-    Only runs once per session."""
+    Only runs once per session. Uses `or` rather than dict.get's default arg
+    throughout, so an empty string (present but blank) falls through to the
+    real default instead of silently sticking as "" -- that gap was exactly
+    what caused team_id to go blank on some page navigations."""
     if st.session_state.get("_settings_initialized"):
         return
     qp = st.query_params
-    st.session_state["team_id"] = qp.get("team_id", st.secrets.get("DEFAULT_TEAM_ID", DEFAULTS["team_id"]))
-    st.session_state["rival_id"] = qp.get("rival_id", st.secrets.get("DEFAULT_RIVAL_ID", DEFAULTS["rival_id"]))
-    st.session_state["rival_mode"] = qp.get("rival_mode", DEFAULTS["rival_mode"])
+    st.session_state["team_id"] = qp.get("team_id") or st.secrets.get("DEFAULT_TEAM_ID") or DEFAULTS["team_id"]
+    st.session_state["rival_id"] = qp.get("rival_id") or st.secrets.get("DEFAULT_RIVAL_ID") or DEFAULTS["rival_id"]
+    st.session_state["rival_mode"] = qp.get("rival_mode") or DEFAULTS["rival_mode"]
     st.session_state["ft_override_enabled"] = qp.get("ft_override_enabled", "0") == "1"
-    st.session_state["ft_override_value"] = int(qp.get("ft_override_value", DEFAULTS["ft_override_value"]))
+    st.session_state["ft_override_value"] = int(qp.get("ft_override_value") or DEFAULTS["ft_override_value"])
     st.session_state["_settings_initialized"] = True
 
 
@@ -102,6 +105,14 @@ def settings_sidebar():
         st.text_input("Rival team ID (your benchmark)", key="rival_id")
         st.radio("Rival objective", RIVAL_MODES, key="rival_mode")
 
+        # Guard against a blank value sticking (e.g. from a dropped query
+        # string on page navigation) -- restore the default rather than
+        # let every other page fail the numeric-ID check.
+        if not st.session_state["team_id"].strip():
+            st.session_state["team_id"] = st.secrets.get("DEFAULT_TEAM_ID") or DEFAULTS["team_id"]
+        if not st.session_state["rival_id"].strip():
+            st.session_state["rival_id"] = st.secrets.get("DEFAULT_RIVAL_ID") or DEFAULTS["rival_id"]
+
         st.divider()
 
         live, auth_error = _try_login_and_fetch(st.session_state["team_id"])
@@ -147,9 +158,9 @@ def get_settings():
     """Returns the current settings as a plain dict for use in page logic."""
     live = st.session_state.get("_live_fpl_state")
     return {
-        "team_id": st.session_state.get("team_id", DEFAULTS["team_id"]),
-        "rival_id": st.session_state.get("rival_id", DEFAULTS["rival_id"]),
-        "rival_mode": st.session_state.get("rival_mode", DEFAULTS["rival_mode"]),
+        "team_id": st.session_state.get("team_id") or DEFAULTS["team_id"],
+        "rival_id": st.session_state.get("rival_id") or DEFAULTS["rival_id"],
+        "rival_mode": st.session_state.get("rival_mode") or DEFAULTS["rival_mode"],
         "ft_override": (
             st.session_state.get("ft_override_value")
             if st.session_state.get("ft_override_enabled") else None
