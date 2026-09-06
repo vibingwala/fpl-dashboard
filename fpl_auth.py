@@ -30,7 +30,15 @@ def login(email: str, password: str) -> requests.Session:
         "app": "plfpl-web",
         "redirect_uri": "https://fantasy.premierleague.com/",
     }
-    response = session.post(LOGIN_URL, data=payload, allow_redirects=True, timeout=15)
+    try:
+        response = session.post(LOGIN_URL, data=payload, allow_redirects=True, timeout=15)
+    except requests.RequestException as e:
+        raise FPLLoginError(
+            f"Couldn't reach FPL's login page (network error: {e}). This may be "
+            f"transient -- try again in a moment. If it keeps happening, FPL may be "
+            f"blocking Streamlit Cloud's outbound requests, or their login endpoint "
+            f"has changed."
+        )
 
     # A failed login redirects back to a page containing an error state;
     # a successful one lands on fantasy.premierleague.com with auth cookies set.
@@ -43,7 +51,10 @@ def login(email: str, password: str) -> requests.Session:
 
 
 def get_my_team(session: requests.Session, team_id: int) -> dict:
-    response = session.get(MY_TEAM_URL.format(team_id=team_id), timeout=15)
+    try:
+        response = session.get(MY_TEAM_URL.format(team_id=team_id), timeout=15)
+    except requests.RequestException as e:
+        raise FPLLoginError(f"Network error fetching my-team: {e}")
     if response.status_code == 403:
         raise FPLLoginError(
             "Got a 403 fetching my-team -- the session may have expired, or this "

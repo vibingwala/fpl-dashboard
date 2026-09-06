@@ -64,7 +64,9 @@ def _sync_query_params():
 def _try_login_and_fetch(team_id_str):
     """Logs in once per session (cached in session_state) and fetches
     my-team data fresh each call (cheap, no caching needed -- it's the
-    whole point that this is live)."""
+    whole point that this is live). Any failure here -- network, auth,
+    or otherwise -- must NEVER crash the app; login is a nice-to-have
+    enhancement, not something Squad View or Transfers should depend on."""
     fpl_email = st.secrets.get("FPL_EMAIL")
     fpl_password = st.secrets.get("FPL_PASSWORD")
     if not (fpl_email and fpl_password):
@@ -74,7 +76,7 @@ def _try_login_and_fetch(team_id_str):
         try:
             st.session_state["fpl_session"] = login(fpl_email, fpl_password)
             st.session_state["fpl_auth_error"] = None
-        except FPLLoginError as e:
+        except Exception as e:
             st.session_state["fpl_session"] = None
             st.session_state["fpl_auth_error"] = str(e)
 
@@ -85,7 +87,7 @@ def _try_login_and_fetch(team_id_str):
     try:
         my_team = get_my_team(session, int(team_id_str))
         return extract_authoritative_state(my_team), None
-    except FPLLoginError as e:
+    except Exception as e:
         return None, str(e)
 
 
