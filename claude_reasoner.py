@@ -51,12 +51,17 @@ RECOMMENDATION_TOOL = {
                 "type": "array", "items": {"type": "string"},
                 "description": "Real injury/rotation risks found via search. Empty list if none.",
             },
+            "sources_reconciled": {
+                "type": "string",
+                "description": "One or two sentences on how the four profiles and the optimizer's "
+                                "suggestion agreed or disagreed, and why the final call was made.",
+            },
             "sources": {
                 "type": "array", "items": {"type": "string"},
                 "description": "Brief descriptions of sources actually checked, e.g. 'BBC Sport team news'.",
             },
         },
-        "required": ["bottom_line", "transfer", "chip", "captain", "watch_outs", "sources"],
+        "required": ["bottom_line", "transfer", "chip", "captain", "watch_outs", "sources_reconciled", "sources"],
     },
 }
 
@@ -97,6 +102,20 @@ strategy profiles without accounting for the total hit cost.
 
 GOAL: {goal_statement} (the rival benchmark in the data below).
 
+You have FIVE inputs for the transfer decision, not four: the usual template/differential/
+aggressive/conservative profiles, PLUS optimizer_suggestion -- an exact mathematical solve
+(real MILP solver, not a heuristic) that maximizes total points-per-value of incoming
+players, with no concept of fixture nuance or fresh news. Reason across all five and commit
+to ONE recommendation:
+- If the optimizer agrees with one of the four profiles, say so explicitly -- that's a
+  strong signal worth naming.
+- If it disagrees with all four, make the actual judgment call rather than defaulting to
+  either side by habit: the optimizer might be catching pure value the profiles missed, or
+  a profile's fixture/news-informed pick might correctly override a mathematically "optimal"
+  but tactically poor choice. Say which you're picking and why.
+- If optimizer_suggestion.available is false, note briefly why (usually: not logged in)
+  and proceed on the four profiles alone.
+
 Research before you answer: use web_search as many times as genuinely useful -- check
 squad injury/rotation news AND the opponent's actual current form (not just their
 season-long strength rating) for the transfer and captain decisions. Follow up with a
@@ -112,6 +131,11 @@ Data:
 
 def generate_recommendation(api_key, context: dict, validation_feedback=None) -> dict:
     """
+    context should include: gameweek, my_total, rival_total, points_trend, bank,
+    free_transfers, chips_used, transfer_suggestions (4 profiles), chip_suggestions,
+    captain_options, optimizer_suggestion (the 5th input -- exact MILP solve, or an
+    "available": False explanation), squad_status_flags.
+
     Returns the structured recommendation dict (matching RECOMMENDATION_TOOL's
     schema) plus '_raw_text' (any prose reasoning alongside the tool call, for
     transparency/debugging).

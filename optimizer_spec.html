@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Transfer Optimizer — Mathematical Specification</title>
+<script>
+  window.MathJax = { tex: { inlineMath: [['$', '$']], displayMath: [['$$', '$$']] } };
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" defer></script>
+<style>
+  :root {
+    --bg: #0D1210; --panel: #121815; --panel2: #182019; --border: #223028;
+    --gold: #C9A24B; --text: #EDEDE8; --muted: #7A8580; --green: #4C9A6A; --red: #C1443B;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: 'Georgia', 'Times New Roman', serif;
+    background: var(--bg); color: var(--text); margin: 0; padding: 0 0 80px;
+  }
+  header { padding: 36px 20px 24px; border-bottom: 1px solid var(--border); }
+  header h1 { margin: 0 0 6px; font-size: 24px; font-family: 'Inter', sans-serif; font-weight: 600; }
+  header p { margin: 0; color: var(--muted); font-size: 14px; font-family: 'Inter', sans-serif; }
+  .wrap { max-width: 720px; margin: 0 auto; padding: 0 20px; }
+  h2 {
+    font-family: 'Inter', sans-serif; color: var(--gold); font-size: 13px;
+    text-transform: uppercase; letter-spacing: 0.6px; margin: 44px 0 12px; font-weight: 600;
+  }
+  p { line-height: 1.7; font-size: 15.5px; }
+  .eq-block {
+    background: var(--panel); border: 1px solid var(--border); border-left: 3px solid var(--gold);
+    border-radius: 6px; padding: 18px 22px; margin: 16px 0; overflow-x: auto;
+  }
+  .decision {
+    background: var(--panel2); border-radius: 6px; padding: 10px 16px; margin: 10px 0;
+    font-family: 'Inter', sans-serif; font-size: 13px; color: var(--muted);
+  }
+  .decision strong { color: var(--text); }
+  table.notation { width: 100%; border-collapse: collapse; font-family: 'Inter', sans-serif; font-size: 13.5px; margin: 12px 0; }
+  table.notation th { text-align: left; color: var(--muted); font-weight: 500; padding: 6px 10px; border-bottom: 1px solid var(--border); font-size: 11px; text-transform: uppercase; }
+  table.notation td { padding: 8px 10px; border-bottom: 1px solid var(--border); }
+  ol.constraints li { margin-bottom: 14px; line-height: 1.7; }
+  .limitation {
+    background: rgba(193,68,59,0.08); border: 1px solid rgba(193,68,59,0.3); border-radius: 6px;
+    padding: 12px 16px; margin: 12px 0; font-family: 'Inter', sans-serif; font-size: 13.5px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <h1>Transfer Optimizer — Mathematical Specification</h1>
+    <p>Written before implementation. Every open parameter below was a genuine decision, not an assumption.</p>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <h2>Notation</h2>
+  <table class="notation">
+    <tr><th>Symbol</th><th>Meaning</th></tr>
+    <tr><td>$S$</td><td>Current 15-man squad, partitioned by position: $S_{GKP}, S_{DEF}, S_{MID}, S_{FWD}$</td></tr>
+    <tr><td>$C$</td><td>Candidate pool — all eligible players not currently owned</td></tr>
+    <tr><td>$T$</td><td>Target number of transfers (given)</td></tr>
+    <tr><td>$F$</td><td>Free transfers available this week</td></tr>
+    <tr><td>$O \subseteq S$</td><td>Chosen outgoing (sold) players, $|O| = T$</td></tr>
+    <tr><td>$I \subseteq C$</td><td>Chosen incoming (bought) players, $|I| = T$</td></tr>
+    <tr><td>$p_j$</td><td>Projected points for player $j$, multi-gameweek horizon (next 4 GWs)</td></tr>
+    <tr><td>$v_j$</td><td>Player $j$'s price, £m</td></tr>
+    <tr><td>$\text{sp}_i$</td><td>Real selling price of owned player $i$ (from authenticated my-team data)</td></tr>
+  </table>
+
+  <h2>Objective function</h2>
+  <p>Maximize the aggregate points-per-value of the incoming set only. Selling choices do not appear
+  in the objective directly — they matter only for feasibility, addressed in the constraints below.</p>
+
+  <div class="eq-block">
+    $$ \max_{I} \; R(I) \;=\; \dfrac{\displaystyle\sum_{j \in I} p_j}{\displaystyle\sum_{j \in I} v_j \;+\; \Delta V_{hit}} $$
+  </div>
+
+  <div class="decision">
+    <strong>Decision:</strong> aggregate formulation chosen over the alternative (mean of each incoming
+    player's own $p_j/v_j$ ratio) — total points bought per total £m spent, not average individual efficiency.
+  </div>
+
+  <h2>Hit-cost mechanism</h2>
+  <p>Transfers beyond the free allowance cost $-4$ points each under FPL's own rules. Rather than
+  subtracting this from the numerator, it is converted into an equivalent value inflation added to the
+  denominator — expressed in the same units the objective already uses:</p>
+
+  <div class="eq-block">
+    $$ \Delta V_{hit} \;=\; \dfrac{4 \cdot \max(0,\, T - F)}{\lambda} \qquad\qquad \lambda \;=\; \dfrac{1}{|C|}\sum_{k \in C} \dfrac{p_k}{v_k} $$
+  </div>
+
+  <p>$\lambda$ is the market rate — mean points-per-£m across the entire candidate pool right now — used
+  to translate a raw points penalty into a comparable £m quantity.</p>
+
+  <div class="decision">
+    <strong>Decision:</strong> $\lambda$ computed from the live candidate pool (market-rate), not a fixed
+    constant.<br>
+    <strong>Note:</strong> because the objective is aggregate, $\Delta V_{hit}$ only needs to be added once
+    to the total denominator — no need to decide which specific incoming player "absorbs" the penalty.
+  </div>
+
+  <h2>Constraints</h2>
+  <ol class="constraints">
+    <li><strong>Squad composition</strong> — the resulting 15-man squad has exactly 2 GKP, 5 DEF, 5 MID, 3 FWD:
+      $$ |O \cap S_{pos}| = |I \cap C_{pos}| \quad \text{for each position } pos $$
+    </li>
+    <li><strong>Budget</strong> — using real selling price, not current price, since FPL's 50% profit-sell
+      rule means they can differ:
+      $$ \text{bank} + \sum_{i \in O} \text{sp}_i \;\geq\; \sum_{j \in I} v_j $$
+    </li>
+    <li><strong>Club limit</strong> — no more than 3 players from any one real-world club in the resulting squad:
+      $$ \text{count}_{club}(S \setminus O \cup I) \leq 3 \quad \text{for every club} $$
+    </li>
+    <li><strong>Eligibility</strong> — $O \subseteq S$, $I \subseteq C$, $O \cap I = \emptyset$.</li>
+  </ol>
+
+  <div class="limitation">
+    <strong>Stated limitation:</strong> accurate $\text{sp}_i$ (real selling price) is only available via
+    authenticated login. Rather than approximate it from current price when not logged in — which would be
+    silently wrong whenever a player's risen in value — the optimizer refuses to run at all without login.
+  </div>
+
+  <h2>Solution method</h2>
+  <p>The search is two-stage, following directly from the fact that $O$ doesn't appear in the objective:</p>
+  <ol class="constraints">
+    <li><strong>Stage 1 — find the best $I$:</strong> search combinations of buy candidates per position,
+    ranked by $R(I)$. A full search of every real candidate ($|C| \approx 500+$) is combinatorially
+    infeasible, so this stage is bounded to a shortlist of the strongest ~15 candidates per position by
+    projected points.</li>
+    <li><strong>Stage 2 — find a feasible $O$ for that $I$:</strong> full, <em>unbounded</em> search across
+    your actual squad (small — at most 5 players per position) for any combination satisfying the budget
+    and club-limit constraints. Among feasible options, the one forfeiting the fewest points is chosen as
+    a tie-break. If no feasible $O$ exists, move to the next-best $I$ from Stage 1 and repeat.</li>
+  </ol>
+
+  <div class="decision">
+    <strong>Decision:</strong> sell-side search is exhaustive (no bound), per explicit instruction — only
+    the buy-side shortlist is bounded, and only because exhaustive search there is not computationally
+    tractable, not by preference.
+  </div>
+
+</div>
+</body>
+</html>

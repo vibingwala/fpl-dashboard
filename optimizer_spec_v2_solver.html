@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Transfer Optimizer — Solver Reformulation (v2)</title>
+<script>
+  window.MathJax = { tex: { inlineMath: [['$', '$']], displayMath: [['$$', '$$']] } };
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" defer></script>
+<style>
+  :root {
+    --bg: #0D1210; --panel: #121815; --panel2: #182019; --border: #223028;
+    --gold: #C9A24B; --text: #EDEDE8; --muted: #7A8580; --green: #4C9A6A; --red: #C1443B;
+  }
+  * { box-sizing: border-box; }
+  body { font-family: 'Georgia', 'Times New Roman', serif; background: var(--bg); color: var(--text); margin: 0; padding: 0 0 80px; }
+  header { padding: 36px 20px 24px; border-bottom: 1px solid var(--border); }
+  header h1 { margin: 0 0 6px; font-size: 24px; font-family: 'Inter', sans-serif; font-weight: 600; }
+  header p { margin: 0; color: var(--muted); font-size: 14px; font-family: 'Inter', sans-serif; }
+  .wrap { max-width: 720px; margin: 0 auto; padding: 0 20px; }
+  h2 { font-family: 'Inter', sans-serif; color: var(--gold); font-size: 13px; text-transform: uppercase; letter-spacing: 0.6px; margin: 44px 0 12px; font-weight: 600; }
+  p { line-height: 1.7; font-size: 15.5px; }
+  .eq-block { background: var(--panel); border: 1px solid var(--border); border-left: 3px solid var(--gold); border-radius: 6px; padding: 18px 22px; margin: 16px 0; overflow-x: auto; }
+  .decision { background: var(--panel2); border-radius: 6px; padding: 10px 16px; margin: 10px 0; font-family: 'Inter', sans-serif; font-size: 13px; color: var(--muted); }
+  .decision strong { color: var(--text); }
+  .improvement { background: rgba(76,154,106,0.08); border: 1px solid rgba(76,154,106,0.3); border-radius: 6px; padding: 12px 16px; margin: 12px 0; font-family: 'Inter', sans-serif; font-size: 13.5px; }
+  table.notation { width: 100%; border-collapse: collapse; font-family: 'Inter', sans-serif; font-size: 13.5px; margin: 12px 0; }
+  table.notation th { text-align: left; color: var(--muted); font-weight: 500; padding: 6px 10px; border-bottom: 1px solid var(--border); font-size: 11px; text-transform: uppercase; }
+  table.notation td { padding: 8px 10px; border-bottom: 1px solid var(--border); }
+  ol.steps li { margin-bottom: 14px; line-height: 1.7; }
+  .pill { display: inline-block; font-family: 'Inter', sans-serif; font-size: 10.5px; font-weight: 600; padding: 3px 10px; border-radius: 20px; text-transform: uppercase; background: rgba(201,162,75,0.15); color: var(--gold); margin-bottom: 8px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <h1>Transfer Optimizer — Solver Reformulation</h1>
+    <p>Addendum to the original specification. Replaces the bounded heuristic search with an exact MILP solve.</p>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <span class="pill">Why this is needed</span>
+  <p>The original spec's objective, $R(I) = \sum p_j / (\sum v_j + \Delta V_{hit})$, is a <em>ratio</em>.
+  CBC — like virtually every MILP solver — only optimizes <em>linear</em> objectives directly. The original
+  implementation worked around this with a hand-bounded search (top-15 candidates per position). This
+  reformulation removes that bound entirely via an exact technique: Dinkelbach's algorithm.</p>
+
+  <h2>Decision variables (unchanged in meaning, now solver-native)</h2>
+  <table class="notation">
+    <tr><th>Variable</th><th>Meaning</th></tr>
+    <tr><td>$x_j \in \{0,1\}$, for $j \in C$</td><td>1 if candidate $j$ is bought</td></tr>
+    <tr><td>$y_i \in \{0,1\}$, for $i \in S$</td><td>1 if owned player $i$ is sold</td></tr>
+  </table>
+
+  <div class="improvement">
+    <strong>Improvement over v1:</strong> position allocation no longer needs to be enumerated by hand
+    (the "partitions" step in the original two-stage search). The solver decides the optimal split across
+    positions itself, subject to the constraint below — this was a manual step before and is now automatic.
+  </div>
+
+  <h2>Constraints, restated for the solver</h2>
+  <div class="eq-block">
+    $$ \sum_{j \in C_{pos}} x_j = \sum_{i \in S_{pos}} y_i \quad \text{for each position } pos \qquad \text{(composition preserved)} $$
+    $$ \sum_{j \in C} x_j = T, \qquad \sum_{i \in S} y_i = T $$
+    $$ \text{bank} + \sum_{i \in S} y_i \cdot \text{sp}_i \;\geq\; \sum_{j \in C} x_j \cdot v_j \qquad \text{(budget)} $$
+    $$ \text{count}_{club}(S) - \sum_{i \in S_{club}} y_i + \sum_{j \in C_{club}} x_j \;\leq\; 3 \quad \text{for every club} \qquad \text{(club limit)} $$
+  </div>
+
+  <h2>Dinkelbach's algorithm</h2>
+  <p>Instead of maximizing the ratio directly, solve a sequence of ordinary <em>linear</em> problems, each
+  parametrized by a trial ratio $q$:</p>
+
+  <div class="eq-block">
+    $$ F(q) \;=\; \max_{x,y} \; \sum_{j \in C} x_j p_j \;-\; q \sum_{j \in C} x_j v_j \quad \text{subject to all constraints above} $$
+  </div>
+
+  <p>Note $\Delta V_{hit}$ is a known constant once $T$ and $F$ (free transfers) are fixed — it doesn't
+  depend on which players are chosen, so it drops out of the arg-max and is only added back when computing
+  the actual ratio for the convergence check below.</p>
+
+  <ol class="steps">
+    <li><strong>Initialize</strong> $q_0 = 0$.</li>
+    <li><strong>Solve</strong> the linear problem $F(q_n)$ with CBC — a single, ordinary MILP solve, no ratio involved.</li>
+    <li><strong>Extract</strong> the optimal $x^*, y^*$ found, compute the actual ratio at that solution:
+    $$ q_{n+1} \;=\; \dfrac{\sum_j x_j^* p_j}{\sum_j x_j^* v_j + \Delta V_{hit}} $$</li>
+    <li><strong>Check convergence:</strong> if $|q_{n+1} - q_n| < \varepsilon$ (e.g. $10^{-6}$), stop — $x^*, y^*$ is the exact optimum. Otherwise set $q_n \leftarrow q_{n+1}$ and repeat from step 2.</li>
+  </ol>
+
+  <p>This is a standard, exact method for fractional 0-1 programming (Dinkelbach, 1967) — not a heuristic
+  approximation. It typically converges in 5-10 iterations for problems this size, meaning 5-10 fast CBC
+  solves rather than one intractable combinatorial search.</p>
+
+  <h2>Solver</h2>
+  <p><strong>PuLP + CBC</strong> — both free, open-source, no license or account required. CBC ships bundled
+  with PuLP, so no separate installation step. This is the same stack used by most existing open-source FPL
+  optimizer projects.</p>
+
+  <div class="improvement">
+    <strong>Net effect:</strong> the buy-side shortlist-of-15 limitation from the original spec is eliminated.
+    CBC searches the entire real candidate pool (~500+ players) exactly, and the two-stage manual search
+    (best $I$, then feasible $O$) becomes one joint solve per Dinkelbach iteration.
+  </div>
+
+</div>
+</body>
+</html>
